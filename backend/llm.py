@@ -53,12 +53,14 @@ def call_llm(api_key: str, prompt: str, *, json_mode: bool = False,
             body = json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         detail = e.read().decode("utf-8", "ignore")[:600]
+        print(f"[llm] Groq HTTP {e.code}: {detail}", flush=True)
         if e.code == 429:
             raise AppError("GROQ_QUOTA", detail=detail)
         if e.code in (401, 403):
             raise AppError("NO_API_KEY", detail=detail)
         raise AppError("GROQ_ERROR", detail=f"HTTP {e.code}: {detail}")
     except urllib.error.URLError as e:
+        print(f"[llm] Groq connection error: {e.reason}", flush=True)
         raise AppError("GROQ_ERROR", detail=f"Koneksi gagal: {e.reason}")
 
     try:

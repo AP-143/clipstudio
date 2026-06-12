@@ -171,12 +171,14 @@ def _snap_to_segments(moments: list[dict], segments: list[dict]) -> list[dict]:
     return fixed
 
 
-def _chunk_transcript(text: str, max_chars: int = 28000) -> list[str]:
+def _chunk_transcript(text: str, max_chars: int = 9000) -> list[str]:
     """Split the timestamped transcript into chunks that each stay under Groq's
-    per-request token budget. A long video's full transcript (e.g. ~15k tokens
-    for ~40 min) exceeds the free-tier tokens-per-minute limit and the request
-    is rejected (HTTP 413) AFTER the whole transcribe already ran. Splitting on
-    segment lines keeps timestamps intact so cut points stay accurate."""
+    per-request token budget (free tier: 12k tokens/min). Indonesian text packs
+    ~2 chars/token (not ~4 like English), so ~11k chars + the prompt lands near
+    ~6k tokens — safely under the limit, and two fit per minute. A long video's
+    full transcript otherwise exceeds it and the request is rejected (HTTP 413)
+    AFTER the whole transcribe already ran. Splitting on segment lines keeps
+    timestamps intact so cut points stay accurate."""
     lines = [ln for ln in text.split("\n") if ln.strip()]
     chunks: list[str] = []
     cur: list[str] = []
@@ -198,7 +200,7 @@ def _analyze_chunk(api_key: str, chunk: str, duration: float,
     limits with growing backoff (the free-tier token window resets each minute,
     so a later attempt clears once earlier requests age out)."""
     prompt = ANALYZE_PROMPT.format(transcript=chunk, duration=int(duration or 0))
-    backoff = [15, 30, 60]
+    backoff = [20, 45, 60]
     last: Optional[AppError] = None
     for i in range(attempts):
         try:
@@ -224,8 +226,15 @@ def analyze(job_id: str, transcript_text: str, duration: float,
 
     chunks = _chunk_transcript(transcript_text)
     raw_moments: list[dict] = []
-    for chunk in chunks:
+    for i, chunk in enumerate(chunks):
         jobs.check_cancelled(job_id)
+        if len(chunks) > 1:
+            jobs.update_status(job_id, progress=int(35 + (i / len(chunks)) * 14),
+                               message=f"Menganalisa bagian {i + 1}/{len(chunks)}")
+        # Pace requests so the free-tier per-minute token limit resets between
+        # them (each chunk is ~6k tokens; two per minute is safe).
+        if i > 0:
+            time.sleep(32)
         try:
             raw_moments.extend(_analyze_chunk(api_key, chunk, duration))
         except AppError:

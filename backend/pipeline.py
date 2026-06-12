@@ -136,8 +136,11 @@ async def run_pipeline(job_id: str, *, source_type: str,
         raise
     except AppError as e:
         jobs.kill_procs(job_id)
+        msg = e.args[0]
+        if getattr(e, "detail", None):
+            msg = f"{msg} — {str(e.detail)[:200]}"
         jobs.update_status(job_id, status=jobs.STATUS_FAILED, step="Gagal",
-                           message=e.args[0], error=e.code)
+                           message=msg, error=e.code)
         raise
     except Exception as e:  # noqa: BLE001
         jobs.kill_procs(job_id)
