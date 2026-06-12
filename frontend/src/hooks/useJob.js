@@ -28,10 +28,20 @@ function useJobState() {
     document.title = 'ClipStudio'
   }, [])
 
-  // Recover on first load: if a job id is stored, fetch its status.
+  // Recover on first load: if a job id is stored, fetch its status — and if it
+  // already finished, pull the result too so the done view / results render
+  // immediately (e.g. after a refresh or opening a job from History).
   useEffect(() => {
     if (!jobId) return
-    api(`/api/status/${jobId}`).then(setStatus).catch(() => clear())
+    api(`/api/status/${jobId}`).then((st) => {
+      setStatus(st)
+      if (st.status === 'done') {
+        api(`/api/result/${jobId}`).then((res) => {
+          setResult(res)
+          localStorage.setItem(LS.jobResult, JSON.stringify(res))
+        }).catch(() => {})
+      }
+    }).catch(() => clear())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

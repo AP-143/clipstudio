@@ -43,7 +43,11 @@ export default function History() {
   const view = (id) => {
     localStorage.setItem(LS.jobId, id)
     localStorage.removeItem(LS.jobResult)
-    navigate('/app/results')
+    // Full reload (not client-side nav): the job state lives in a context that
+    // persists across in-app navigation and only reads localStorage on mount,
+    // so a soft navigate would keep showing the previous job. A hard load makes
+    // it re-read the id we just selected.
+    window.location.assign('/app/results')
   }
 
   return (
