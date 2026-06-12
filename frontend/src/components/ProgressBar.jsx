@@ -11,24 +11,43 @@ const STAGES = [
   [95, 'Finalizing'],
 ]
 
-function estimate(progress, startedAt) {
-  if (!progress || progress <= 1 || !startedAt) return null
-  const elapsed = (Date.now() - startedAt) / 1000
-  const total = (elapsed / progress) * 100
-  const remain = Math.max(0, total - elapsed)
-  if (remain < 1) return null
+// ETA from the RECENT progress velocity (sliding ~60s window), not a linear
+// projection from the job's start. The phases run at very different speeds
+// (download/model-load is slow, later stages fast), so extrapolating the early
+// rate over the whole job wildly over-estimated (e.g. "100 mnt" while it was
+// really ~5). A rolling rate adapts as the work moves between phases.
+function estimateRolling(samples, progress) {
+  if (progress <= 1 || progress >= 100 || samples.length < 2) return null
+  const first = samples[0]
+  const last = samples[samples.length - 1]
+  const dp = last.p - first.p
+  const dt = (last.t - first.t) / 1000
+  if (dp <= 0 || dt <= 0) return null
+  const remain = ((100 - progress) / (dp / dt))
+  if (!isFinite(remain) || remain < 1) return null
   return remain < 60 ? `${Math.round(remain)} dtk` : `${Math.round(remain / 60)} mnt`
 }
 
 export default function ProgressBar({ status }) {
   const progress = status?.progress || 0
-  const started = useRef(Date.now())
+  const samples = useRef([])
   const [, force] = useState(0)
+
+  // Record a sample whenever the percentage changes; keep the last 60s.
+  useEffect(() => {
+    const now = Date.now()
+    const arr = samples.current
+    if (!arr.length || arr[arr.length - 1].p !== progress) {
+      arr.push({ t: now, p: progress })
+      while (arr.length > 2 && arr[0].t < now - 60000) arr.shift()
+    }
+  }, [progress])
+
   useEffect(() => {
     const t = setInterval(() => force((n) => n + 1), 1000)
     return () => clearInterval(t)
   }, [])
-  const eta = estimate(progress, started.current)
+  const eta = estimateRolling(samples.current, progress)
 
   return (
     <div>

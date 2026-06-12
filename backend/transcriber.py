@@ -58,7 +58,9 @@ def transcribe(job_id: str, source: Path,
         language=language if language and language != "auto" else None,
         word_timestamps=True,
         vad_filter=True,
-        beam_size=5,
+        # beam_size 2 (not 5): ~2x faster on long videos with negligible quality
+        # loss for transcript-based moment detection + subtitles.
+        beam_size=2,
     )
     total = float(info.duration) or 0.0
 
