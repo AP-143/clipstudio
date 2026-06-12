@@ -92,7 +92,18 @@ def _probe_1080(job_id: str, url: str, cookies: Optional[str]) -> dict:
 def _run_yt_dlp(job_id: str, url: str, out_path: Path,
                 cookies: Optional[str], progress_cb) -> tuple[bool, str]:
     """One download attempt. Returns (success, last_output_line)."""
-    fmt = "bestvideo[height=1080]+bestaudio/best[height=1080]"
+    # Prefer H.264 (avc1) at 1080p: YouTube's "best" 1080p is often AV1, which
+    # the container's ffmpeg/NVDEC fails to decode ("av1 … Failed to get pixel
+    # format") at the scene-detect/crop stage. avc1 decodes everywhere; fall back
+    # to VP9, then any 1080p (incl. AV1) only as a last resort.
+    fmt = (
+        "bestvideo[height=1080][vcodec^=avc1][protocol^=https]+bestaudio[ext=m4a]/"
+        "bestvideo[height=1080][vcodec^=avc1][protocol^=https]+bestaudio/"
+        "bestvideo[height=1080][vcodec^=vp9][protocol^=https]+bestaudio/"
+        "bestvideo[height=1080][protocol^=https]+bestaudio/"
+        "bestvideo[height=1080]+bestaudio/"
+        "best[height=1080]"
+    )
     cmd = [
         "yt-dlp", "-f", fmt, "--merge-output-format", "mp4",
         "--no-playlist", "--no-warnings", "--newline",
