@@ -154,14 +154,20 @@ def _snap_to_segments(moments: list[dict], segments: list[dict]) -> list[dict]:
                         break
         out.append({**m, "start": round(new_start, 3), "end": round(new_end, 3),
                     "duration": round(new_end - new_start, 3)})
-    # Snapping can create small overlaps; trim later clip starts to fix.
+    # Snapping extends ends to reach min_dur, which can re-introduce overlaps.
+    # Trim each later clip's start to the previous clip's end — but if that
+    # squeezes it below a usable length (or past its own end -> negative
+    # duration), DROP it instead of emitting a clip that ffmpeg can't cut.
     out.sort(key=lambda x: x["start"])
-    for i in range(1, len(out)):
-        if out[i]["start"] < out[i - 1]["end"]:
-            out[i]["start"] = out[i - 1]["end"]
-            out[i]["duration"] = round(out[i]["end"] - out[i]["start"], 3)
-    out.sort(key=lambda x: x["viral_score"], reverse=True)
-    return out
+    fixed: list[dict] = []
+    for m in out:
+        if fixed and m["start"] < fixed[-1]["end"]:
+            m["start"] = fixed[-1]["end"]
+        m["duration"] = round(m["end"] - m["start"], 3)
+        if m["duration"] >= 5:
+            fixed.append(m)
+    fixed.sort(key=lambda x: x["viral_score"], reverse=True)
+    return fixed
 
 
 def analyze(job_id: str, transcript_text: str, duration: float,

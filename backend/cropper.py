@@ -15,6 +15,7 @@ from typing import Callable, Optional
 
 import jobs
 from config import OUT_W, OUT_H, video_encoder_args, has_nvenc
+from errors import AppError
 from media import run_ffmpeg, probe
 
 ASPECT = OUT_W / OUT_H  # 9:16 = 0.5625
@@ -265,8 +266,17 @@ def cut_and_crop_all(job_id: str, source: Path, moments: list[dict],
         }
         for fut in as_completed(futs):
             i = futs[fut]
-            results[i] = fut.result()
+            try:
+                results[i] = fut.result()
+            except jobs.JobCancelled:
+                raise
+            except Exception:
+                # One bad clip (corrupt segment, encode glitch) shouldn't sink
+                # the whole job — skip it and keep the rest.
+                pass
             done += 1
             if progress_cb:
                 progress_cb(done, total)
+    if not results:
+        raise AppError("INTERNAL", detail="Semua klip gagal diproses")
     return [results[i] for i in sorted(results)]
