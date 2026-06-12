@@ -38,10 +38,14 @@ CARA MENENTUKAN start & end (PALING PENTING):
 - Setiap klip harus berisi SATU penjelasan/topik/gerakan yang LENGKAP dari awal
   sampai KESIMPULAN. Gabungkan beberapa segmen berurutan kalau satu penjelasan
   butuh banyak kalimat.
-- DILARANG berhenti sebelum penjelasan selesai. Kalau satu poin butuh 80 detik,
-  ambil 80 detik. JANGAN memotong di tengah ide/kalimat.
-- LEBIH BAIK klip 60-90 detik yang UTUH daripada 30 detik yang terpotong.
-- Jangan paksa semua klip ke durasi yang sama; ikuti panjang isi sebenarnya.
+- DILARANG berhenti sebelum penjelasan selesai. Kalau satu poin butuh 120 detik,
+  ambil 120 detik. JANGAN memotong di tengah ide/kalimat.
+- PRIORITAS UTAMA: pesan/poin harus TERSAMPAIKAN UTUH — dari konteks/setup di
+  awal sampai kesimpulan/punchline di akhir. Bukan cuma potongan viral pendek.
+- Target durasi 60-150 detik. JANGAN bikin klip 20-40 detik — itu kependekan dan
+  memotong pesan. Ambil konteks sebelum & sesudah momen inti biar penonton paham.
+- Durasi BEBAS mengikuti isi: klip boleh beda-beda panjangnya. Yang penting tiap
+  klip = satu ide yang lengkap dan bisa dimengerti tanpa nonton video aslinya.
 
 Kembalikan JSON PERSIS format ini:
 {{
@@ -61,7 +65,7 @@ ATURAN WAJIB:
 - Minimum 2 momen, maksimum 6 momen
 - Urutkan viral_score TERTINGGI ke terendah
 - viral_score antara 0-100
-- Setiap momen 30-100 detik, mengikuti batas konten (bukan angka bulat); utuh, tidak terpotong
+- Setiap momen 60-150 detik (boleh sampai 180 jika idenya panjang), mengikuti isi; utuh, tidak terpotong. Hindari klip pendek <50 detik.
 - Tidak boleh overlap
 - hook_text dalam bahasa yang sama dengan video
 - Kembalikan HANYA JSON, tanpa teks lain
@@ -96,14 +100,13 @@ def _normalize(moments: list[dict], duration: float) -> list[dict]:
         if duration:
             end = min(end, duration)
         dur = end - start
-        if dur < 15 or dur > 120:
-            # Clamp toward the valid window rather than dropping outright.
-            if dur < 15:
-                end = min(start + 30, duration or start + 30)
-            else:
-                end = start + 120
+        # Only cap the upper bound here (let short ones through — _snap_to_segments
+        # extends them to a complete thought). Goal: deliver the full point, so
+        # allow long clips up to 180s.
+        if dur > 180:
+            end = min(start + 180, duration or start + 180)
             dur = end - start
-        if dur < 5:
+        if dur < 8:
             continue
         score = int(max(0, min(100, m.get("viral_score", 50))))
         cleaned.append({
@@ -136,7 +139,10 @@ def _snap_to_segments(moments: list[dict], segments: list[dict]) -> list[dict]:
                   key=lambda s: s["start"])
     if not segs:
         return moments
-    min_dur, max_dur = 26.0, 95.0
+    # Aim for clips that fully deliver the point: extend a too-short moment to
+    # following sentence ends until it reaches a meaningful length, up to a
+    # generous cap. Higher floor than before so clips aren't all ~30s snippets.
+    min_dur, max_dur = 55.0, 170.0
     out = []
     for m in moments:
         before = [s for s in segs if s["start"] <= m["start"] + 0.5]
