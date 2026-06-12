@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Jobs runtime data (keep folder, ignore contents)
+jobs/*
+!jobs/.gitkeep
+
+# Env / secrets
+.env
+
+# Models cache
+*.pt
+*.onnx
+.cache/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

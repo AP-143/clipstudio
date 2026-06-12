@@ -1,0 +1,15 @@
+services:
+  backend:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_VISIBLE_DEVICES=0
+      # "all" injects the NVENC encode libs (libnvidia-encode) too — without
+      # this only compute/utility are mounted and h264_nvenc fails at runtime.
+      - NVIDIA_DRIVER_CAPABILITIES=all

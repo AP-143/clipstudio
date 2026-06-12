@@ -1,0 +1,187 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Dark monochrome theme — soft off-white on near-black, easy on the eyes. */
+  --bg: #0e0e0e;
+  --bg-alt: #1c1c1c;
+  --bg-card: #181818;
+  --text: #ededed;
+  --text-soft: #9a9a9a;
+  --text-faint: #6f6f6f;
+  --accent-brown: #ededed;
+  --btn-dark: #ededed;       /* primary button = light on dark */
+  --line: #2a2a2a;
+  --line-soft: #202020;
+  --font-serif: 'Cormorant Garamond', Georgia, serif;
+  --font-body: 'Inter', sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-weight: 300;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+@layer components {
+  /* Elegant serif for every heading. */
+  .font-display {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    letter-spacing: 0;
+    line-height: 1.12;
+  }
+
+  /* Buttons -------------------------------------------------------- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color .3s ease, color .3s ease, border-color .3s ease;
+  }
+  .btn-solid { background: var(--btn-dark); color: #0a0a0a; border-color: var(--btn-dark); }
+  .btn-solid:hover { background: #cfcfcf; border-color: #cfcfcf; }
+  .btn-outline { background: transparent; color: var(--text); border-color: var(--line); }
+  .btn-outline:hover { background: var(--bg-alt); border-color: var(--text-faint); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  /* Underlined link-button for secondary actions. */
+  .btn-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    color: var(--text);
+    border-bottom: 1px solid var(--text);
+    padding-bottom: 2px;
+    transition: color .3s, border-color .3s;
+  }
+  .btn-link:hover { color: var(--accent-brown); border-color: var(--accent-brown); }
+
+  /* Surfaces ------------------------------------------------------- */
+  .card {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--bg-card);
+  }
+
+  .input {
+    width: 100%;
+    padding: 0.7rem 1rem;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #161616;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 0.875rem;
+    outline: none;
+    transition: border-color .3s ease;
+  }
+  .input::placeholder { color: var(--text-faint); }
+  .input:focus { border-color: var(--text); }
+
+  .label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--text-soft);
+    margin-bottom: 0.5rem;
+  }
+
+  /* Soft status pill. */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-soft);
+  }
+}
+
+/* Marquee */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.marquee-track {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: marquee 30s linear infinite;
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Indeterminate progress shimmer — always sliding to signal "working". */
+@keyframes indeterminate {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+.indeterminate-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 30%;
+  border-radius: 9999px;
+  animation: indeterminate 1.5s ease-in-out infinite;
+}
+
+/* ---------------------------------------------------------------------------
+   Dark-theme remap of the Tailwind tokens. The pages use literal utilities
+   (bg-white / text-ink / border-line …); these overrides flip the light
+   surfaces dark and the dark text light, in one place, for the whole app.
+   `text-white` / `border-white` / bg-white/NN are intentionally left alone —
+   they sit on top of (dark) imagery and should stay light.
+--------------------------------------------------------------------------- */
+.bg-white { background-color: #151515; }
+.bg-alt { background-color: #1c1c1c; }
+.bg-card { background-color: #181818; }
+.bg-cream, .bg-gray-light, .bg-paper { background-color: #1c1c1c; }
+
+.text-ink, .text-clay, .text-brown, .text-black { color: #ededed; }
+.text-soft, .text-gray-mid { color: #9a9a9a; }
+.text-faint { color: #6f6f6f; }
+
+.border-line, .border-gray-border, .border-clay { border-color: #2a2a2a; }
+.border-ink { border-color: #ededed; }
+.bg-gray-border, .bg-line { background-color: #2a2a2a; }
+
+/* Soft page-enter transition on every route change. */
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.page-enter { animation: pageEnter 0.35s ease both; }
+@media (prefers-reduced-motion: reduce) {
+  .page-enter { animation: none; }
+}
