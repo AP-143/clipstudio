@@ -5,15 +5,18 @@ import Results from './pages/Results.jsx'
 import History from './pages/History.jsx'
 import Settings from './pages/Settings.jsx'
 import Navbar from './components/Navbar.jsx'
+import { JobProvider } from './hooks/useJob.js'
 
 function AppShell({ children }) {
   const location = useLocation()
   return (
-    <div className="min-h-screen flex flex-col">
-      <Navbar app />
-      {/* key re-triggers the fade on each navigation so pages ease in softly */}
-      <main key={location.pathname} className="flex-1 page-enter">{children}</main>
-    </div>
+    <JobProvider>
+      <div className="min-h-screen flex flex-col">
+        <Navbar app />
+        {/* key re-triggers the fade on each navigation so pages ease in softly */}
+        <main key={location.pathname} className="flex-1 page-enter">{children}</main>
+      </div>
+    </JobProvider>
   )
 }
 

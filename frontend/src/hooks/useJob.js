@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useState } from 'react'
+import { createContext, createElement, useCallback, useContext, useEffect, useState } from 'react'
 import { LS, api } from '../config.js'
 import { usePolling } from './usePolling.js'
 
 const TERMINAL = new Set(['done', 'failed', 'cancelled'])
 
-// Central job lifecycle: localStorage persistence + polling + refresh recovery.
-export function useJob() {
+// Internal: the actual job lifecycle state machine. Instantiated EXACTLY ONCE by
+// JobProvider so every component (pages + navbar) shares one job, one poller and
+// one source of truth — otherwise each useJob() call kept its own copy and a
+// cancel/clear in one place left stale state (and extra pollers) in the others.
+function useJobState() {
   const [jobId, setJobId] = useState(() => localStorage.getItem(LS.jobId) || null)
   const [status, setStatus] = useState(null)
   const [result, setResult] = useState(() => {
@@ -17,12 +20,18 @@ export function useJob() {
 
   const active = !!jobId && status && !TERMINAL.has(status.status)
 
+  const clear = useCallback(() => {
+    localStorage.removeItem(LS.jobId)
+    localStorage.removeItem(LS.jobStatus)
+    localStorage.removeItem(LS.jobResult)
+    setJobId(null); setStatus(null); setResult(null); setError(null)
+    document.title = 'ClipStudio'
+  }, [])
+
   // Recover on first load: if a job id is stored, fetch its status.
   useEffect(() => {
     if (!jobId) return
-    api(`/api/status/${jobId}`).then(setStatus).catch(() => {
-      clear()
-    })
+    api(`/api/status/${jobId}`).then(setStatus).catch(() => clear())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -85,16 +94,7 @@ export function useJob() {
     if (!jobId) return
     try { await api(`/api/cancel/${jobId}`, { method: 'POST' }) } catch { /* ignore */ }
     clear()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobId])
-
-  const clear = useCallback(() => {
-    localStorage.removeItem(LS.jobId)
-    localStorage.removeItem(LS.jobStatus)
-    localStorage.removeItem(LS.jobResult)
-    setJobId(null); setStatus(null); setResult(null); setError(null)
-    document.title = 'ClipStudio'
-  }, [])
+  }, [jobId, clear])
 
   const refreshResult = useCallback(async () => {
     if (!jobId) return
@@ -106,4 +106,19 @@ export function useJob() {
 
   return { jobId, status, result, error, active, submit, cancel, clear,
            refreshResult, hasActiveJob: !!jobId && !TERMINAL.has(status?.status) }
+}
+
+// One shared job instance for the whole app subtree.
+const JobContext = createContext(null)
+
+export function JobProvider({ children }) {
+  const job = useJobState()
+  return createElement(JobContext.Provider, { value: job }, children)
+}
+
+// Components keep calling useJob() unchanged — it now reads the shared context.
+export function useJob() {
+  const ctx = useContext(JobContext)
+  if (!ctx) throw new Error('useJob must be used within <JobProvider>')
+  return ctx
 }
