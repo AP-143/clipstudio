@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from typing import Optional
 
 from errors import AppError
@@ -170,6 +171,50 @@ def _snap_to_segments(moments: list[dict], segments: list[dict]) -> list[dict]:
     return fixed
 
 
+def _chunk_transcript(text: str, max_chars: int = 28000) -> list[str]:
+    """Split the timestamped transcript into chunks that each stay under Groq's
+    per-request token budget. A long video's full transcript (e.g. ~15k tokens
+    for ~40 min) exceeds the free-tier tokens-per-minute limit and the request
+    is rejected (HTTP 413) AFTER the whole transcribe already ran. Splitting on
+    segment lines keeps timestamps intact so cut points stay accurate."""
+    lines = [ln for ln in text.split("\n") if ln.strip()]
+    chunks: list[str] = []
+    cur: list[str] = []
+    cur_len = 0
+    for ln in lines:
+        if cur and cur_len + len(ln) + 1 > max_chars:
+            chunks.append("\n".join(cur))
+            cur, cur_len = [], 0
+        cur.append(ln)
+        cur_len += len(ln) + 1
+    if cur:
+        chunks.append("\n".join(cur))
+    return chunks or [text[:max_chars]]
+
+
+def _analyze_chunk(api_key: str, chunk: str, duration: float,
+                   attempts: int = 4) -> list[dict]:
+    """One Groq call for a transcript chunk. Retries transient errors and TPM
+    limits with growing backoff (the free-tier token window resets each minute,
+    so a later attempt clears once earlier requests age out)."""
+    prompt = ANALYZE_PROMPT.format(transcript=chunk, duration=int(duration or 0))
+    backoff = [15, 30, 60]
+    last: Optional[AppError] = None
+    for i in range(attempts):
+        try:
+            raw = call_llm(api_key, prompt, json_mode=True)
+            return _extract_json(raw).get("moments", [])
+        except AppError as e:
+            if e.code == "NO_API_KEY":
+                raise  # invalid key — retrying won't help
+            last = e
+        except (ValueError, json.JSONDecodeError):
+            last = AppError("GROQ_ERROR", detail="Parse JSON gagal")
+        if i < attempts - 1:
+            time.sleep(backoff[min(i, len(backoff) - 1)])
+    raise last or AppError("GROQ_ERROR")
+
+
 def analyze(job_id: str, transcript_text: str, duration: float,
             api_key: Optional[str], segments: Optional[list[dict]] = None
             ) -> list[dict]:
@@ -177,16 +222,18 @@ def analyze(job_id: str, transcript_text: str, duration: float,
         raise AppError("NO_API_KEY")
     jobs.check_cancelled(job_id)
 
-    prompt = ANALYZE_PROMPT.format(transcript=transcript_text[:120000],
-                                  duration=int(duration or 0))
-    raw = _call_gemini(api_key, prompt, json_mode=True)
-    try:
-        parsed = _extract_json(raw)
-        moments = parsed.get("moments", [])
-    except (ValueError, json.JSONDecodeError) as e:
-        raise AppError("GROQ_ERROR", detail=f"Parse gagal: {e}")
+    chunks = _chunk_transcript(transcript_text)
+    raw_moments: list[dict] = []
+    for chunk in chunks:
+        jobs.check_cancelled(job_id)
+        try:
+            raw_moments.extend(_analyze_chunk(api_key, chunk, duration))
+        except AppError:
+            if not raw_moments:
+                raise  # first chunk failed and nothing salvaged — surface it
+            break       # keep the moments we already have from earlier chunks
 
-    moments = _normalize(moments, duration)
+    moments = _normalize(raw_moments, duration)
     if segments:
         moments = _snap_to_segments(moments, segments)
     if len(moments) < 2:
