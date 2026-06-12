@@ -61,11 +61,14 @@ async def run_pipeline(job_id: str, *, source_type: str,
             import downloader
             _p(job_id, 5, "Downloading", "Mengunduh video 1080p",
                status=jobs.STATUS_DOWNLOADING)
-            source = downloader.download(
-                job_id, url, cookies=cookies,
-                progress_cb=lambda pct: _p(job_id, int(2 + pct * 0.08),
-                                           "Downloading",
-                                           f"Mengunduh {pct:.0f}%"))
+            # to_thread: yt-dlp streams output in a blocking loop — running it
+            # directly here would freeze the whole event loop (every request,
+            # incl. status polling and new submissions, would hang) until it
+            # finishes. Same reason the analyze/crop steps below are off-loop.
+            source = await asyncio.to_thread(
+                downloader.download, job_id, url, cookies,
+                lambda pct: _p(job_id, int(2 + pct * 0.08), "Downloading",
+                               f"Mengunduh {pct:.0f}%"))
             meta = jobs.get_metadata(job_id) or {}
             duration = float(meta.get("duration") or 0)
             if duration and duration < MIN_DURATION_SEC:
@@ -74,7 +77,7 @@ async def run_pipeline(job_id: str, *, source_type: str,
             source = JOBS_DIR / job_id / "source.mp4"
             if not source.exists():
                 raise AppError("UNSUPPORTED_FORMAT", detail="source.mp4 tidak ada")
-            duration = _validate_local(job_id, source)
+            duration = await asyncio.to_thread(_validate_local, job_id, source)
 
         jobs.check_cancelled(job_id)
         _p(job_id, 10, "Transcribing", "Memulai transkripsi",
@@ -99,15 +102,16 @@ async def run_pipeline(job_id: str, *, source_type: str,
 
         # ---- 3. Analyze ------------------------------------------------
         text = transcriber.transcript_to_text(transcript)
-        moments = analyzer.analyze(job_id, text, duration or transcript["duration"],
-                                   groq_key, segments=transcript.get("segments"))
+        moments = await asyncio.to_thread(
+            analyzer.analyze, job_id, text, duration or transcript["duration"],
+            groq_key, transcript.get("segments"))
         _p(job_id, 50, "Cutting", "Memotong & crop klip",
            status=jobs.STATUS_CUTTING)
 
         # ---- 4. Cut & crop (parallel per moment) -----------------------
-        clips = cropper.cut_and_crop_all(
-            job_id, source, moments, transcript, crop_mode,
-            progress_cb=lambda done, total: _p(
+        clips = await asyncio.to_thread(
+            cropper.cut_and_crop_all, job_id, source, moments, transcript, crop_mode,
+            lambda done, total: _p(
                 job_id, int(50 + (done / max(1, total)) * 30), "Cutting",
                 f"Klip {done}/{total} selesai"))
 
