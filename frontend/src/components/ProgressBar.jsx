@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 
 const STAGES = [
@@ -11,43 +11,50 @@ const STAGES = [
   [95, 'Finalizing'],
 ]
 
-// ETA from the RECENT progress velocity (sliding ~60s window), not a linear
-// projection from the job's start. The phases run at very different speeds
-// (download/model-load is slow, later stages fast), so extrapolating the early
-// rate over the whole job wildly over-estimated (e.g. "100 mnt" while it was
-// really ~5). A rolling rate adapts as the work moves between phases.
-function estimateRolling(samples, progress) {
-  if (progress <= 1 || progress >= 100 || samples.length < 2) return null
-  const first = samples[0]
-  const last = samples[samples.length - 1]
-  const dp = last.p - first.p
-  const dt = (last.t - first.t) / 1000
-  if (dp <= 0 || dt <= 0) return null
-  const remain = ((100 - progress) / (dp / dt))
-  if (!isFinite(remain) || remain < 1) return null
-  return remain < 60 ? `${Math.round(remain)} dtk` : `${Math.round(remain / 60)} mnt`
+// The % bar is NOT linear in wall-clock: download and transcribe each cover a
+// small slice of the bar yet take minutes, while later stages fly. Projecting
+// the current %/time rate over the rest therefore wildly over-estimated (a
+// "download 4%" once read "90 mnt" when the real total was ~10). Instead, map
+// the bar % onto a weighted time line (rough relative wall-clock per phase) and
+// extrapolate from elapsed time since the job was created — a stable, honest ETA.
+const PHASES = [
+  [0, 10, 4],     // download (network-bound, the most variable)
+  [10, 30, 4],    // transcribe (Whisper)
+  [30, 35, 0.3],  // scene detect
+  [35, 50, 2.5],  // analyze (Groq, chunked w/ backoff)
+  [50, 95, 3],    // cut & crop
+  [95, 100, 0.3], // finalize
+]
+const TOTAL_W = PHASES.reduce((s, p) => s + p[2], 0)
+
+function weightedFraction(progress) {
+  let acc = 0
+  for (const [a, b, w] of PHASES) {
+    if (progress >= b) { acc += w; continue }
+    if (progress > a) acc += (w * (progress - a)) / (b - a)
+    break
+  }
+  return acc / TOTAL_W
+}
+
+function estimateETA(progress, createdAt) {
+  if (!createdAt || progress <= 1 || progress >= 100) return null
+  const elapsed = (Date.now() - new Date(createdAt).getTime()) / 1000
+  const f = weightedFraction(progress)
+  if (elapsed < 5 || f <= 0.001) return null
+  const remain = (elapsed * (1 - f)) / f
+  if (!isFinite(remain) || remain < 5) return null
+  return remain < 90 ? `${Math.round(remain)} dtk` : `${Math.round(remain / 60)} mnt`
 }
 
 export default function ProgressBar({ status }) {
   const progress = status?.progress || 0
-  const samples = useRef([])
   const [, force] = useState(0)
-
-  // Record a sample whenever the percentage changes; keep the last 60s.
-  useEffect(() => {
-    const now = Date.now()
-    const arr = samples.current
-    if (!arr.length || arr[arr.length - 1].p !== progress) {
-      arr.push({ t: now, p: progress })
-      while (arr.length > 2 && arr[0].t < now - 60000) arr.shift()
-    }
-  }, [progress])
-
   useEffect(() => {
     const t = setInterval(() => force((n) => n + 1), 1000)
     return () => clearInterval(t)
   }, [])
-  const eta = estimateRolling(samples.current, progress)
+  const eta = estimateETA(progress, status?.created_at)
 
   return (
     <div>
