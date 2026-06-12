@@ -307,24 +307,25 @@ def remove_source(job_id: str) -> None:
 
 
 def cleanup_on_startup() -> dict:
-    """Fail jobs stuck in an active state for too long; report counts."""
+    """Fail every job still in an active state.
+
+    This runs once at startup, when nothing is actually processing yet (the
+    in-memory task table + semaphore were reset with the process). So any job
+    whose status is still 'downloading'/'transcribing'/etc. is a zombie left by
+    a previous process — mark it failed so the UI doesn't sit there forever
+    thinking a dead job is still running (which also blocks starting a new one).
+    """
     failed = 0
-    cutoff = time.time() - JOB_STUCK_HOURS * 3600
     for d in JOBS_DIR.iterdir() if JOBS_DIR.exists() else []:
         status = _read_json(d / "status.json") if d.is_dir() else None
         if not status:
             continue
         if status.get("status") in ACTIVE_STATUSES:
-            try:
-                updated = datetime.fromisoformat(status["updated_at"]).timestamp()
-            except Exception:
-                updated = 0
-            if updated < cutoff:
-                update_status(d.name, status=STATUS_FAILED,
-                              message="Job terhenti terlalu lama, ditandai gagal",
-                              error="STUCK_TIMEOUT")
-                remove_source(d.name)
-                failed += 1
+            update_status(d.name, status=STATUS_FAILED,
+                          message="Job terhenti karena server dimulai ulang",
+                          error="INTERRUPTED")
+            remove_source(d.name)
+            failed += 1
     return {"failed_stuck": failed}
 
 

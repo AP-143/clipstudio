@@ -92,8 +92,12 @@ function useJobState() {
 
   const cancel = useCallback(async () => {
     if (!jobId) return
-    try { await api(`/api/cancel/${jobId}`, { method: 'POST' }) } catch { /* ignore */ }
+    const id = jobId
+    // Leave the progress view instantly — the backend cancel can take a few
+    // seconds (it waits to kill ffmpeg/yt-dlp), and the UI must not appear stuck
+    // on the Yes/No dialog while that happens. Fire the request in the background.
     clear()
+    try { await api(`/api/cancel/${id}`, { method: 'POST' }) } catch { /* ignore */ }
   }, [jobId, clear])
 
   const refreshResult = useCallback(async () => {
