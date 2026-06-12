@@ -55,6 +55,11 @@ export default function ProgressBar({ status }) {
     return () => clearInterval(t)
   }, [])
   const eta = estimateETA(progress, status?.created_at)
+  // The big number is OVERALL job progress (matches the bar). The current phase
+  // has its own percentage inside the status message (e.g. "Transkripsi 71%") —
+  // surface it next to the step name so "Transcribing 24%" no longer reads as if
+  // transcription itself were only 24% done.
+  const phasePct = (status?.message || '').match(/(\d+)\s*%/)?.[1]
 
   return (
     <div>
@@ -62,8 +67,12 @@ export default function ProgressBar({ status }) {
         <span className="font-display text-2xl flex items-center gap-3">
           <Loader2 size={20} className="animate-spin text-soft shrink-0" />
           {status?.step || 'Memproses'}
+          {phasePct && <span className="text-base text-gray-mid font-sans">· {phasePct}%</span>}
         </span>
-        <span className="font-display text-4xl">{progress}%</span>
+        <span className="font-display text-4xl flex items-baseline gap-2">
+          {progress}%
+          <span className="text-[10px] uppercase text-gray-mid font-sans tracking-[0.2em]">total</span>
+        </span>
       </div>
       {/* Track: a filled bar for real progress + an always-moving shimmer so the
           UI clearly reads as "working" even while the percentage sits still. */}
