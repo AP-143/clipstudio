@@ -294,37 +294,35 @@ export default function ClipEditor({ jobId, clip, channel }) {
                 <button className="btn btn-solid w-full" onClick={genSubStyle} disabled={subStyleBusy}>
                   <Sparkles size={15} />{subStyleBusy ? 'Menganalisa (Groq)…' : 'AI: buatkan gaya subtitle'}
                 </button>
-                <p className="text-[11px] text-gray-mid">AI analisa vibe klip lalu pilih warna, animasi & posisi sendiri. Atur manual di bawah kalau mau ubah.</p>
-                <details className="border-t border-line pt-2">
-                  <summary className="label cursor-pointer select-none">Atur manual (opsional)</summary>
-                  <div className="space-y-4 pt-3">
-                    <Chips label="Posisi" value={subPos} onChange={setSubPos} options={[
-                      { value: 'top', label: 'Atas' }, { value: 'middle', label: 'Tengah' }, { value: 'bottom', label: 'Bawah' }]} />
-                    <div>
-                      <span className="label">Warna teks</span>
-                      <ColorChips value={subColor} colors={SUB_COLORS} onChange={setSubColor} />
-                    </div>
-                    <div>
-                      <span className="label">Warna kata aktif (highlight)</span>
-                      <div className="flex items-center gap-3">
-                        <ColorChips value={subHi} colors={SUB_COLORS} onChange={setSubHi} />
-                        <input type="color" value={subHi} onChange={(e) => setSubHi(e.target.value)} title="Custom"
-                          className="w-8 h-8 rounded border border-line bg-transparent cursor-pointer p-0" />
-                      </div>
-                    </div>
-                    <Chips label="Animasi" value={subAnim} onChange={setSubAnim} options={[
-                      { value: 'pop', label: 'Pop' }, { value: 'word-highlight', label: 'Glow' },
-                      { value: 'karaoke', label: 'Karaoke' }, { value: 'word-by-word', label: 'Per Kata' },
-                      { value: 'none', label: 'Polos' }]} />
-                    <Chips label="Font" value={subFont} onChange={setSubFont} options={[
-                      { value: 'Impact', label: 'Impact' }, { value: 'Inter', label: 'Inter' },
-                      { value: 'Arial', label: 'Arial' }, { value: 'Georgia', label: 'Serif' }]} />
-                    <Chips label="Latar teks" value={subBg} onChange={setSubBg} options={[
-                      { value: 'none', label: 'Tanpa' }, { value: 'box', label: 'Kotak gelap' }]} />
-                    <Chips label="Ukuran" value={subSize} onChange={setSubSize} options={[
-                      { value: 'S', label: 'Kecil' }, { value: 'M', label: 'Sedang' }, { value: 'L', label: 'Besar' }]} />
+                <p className="text-[11px] text-gray-mid">AI analisa vibe klip lalu pilih warna, animasi & posisi sendiri — atau atur sendiri di bawah.</p>
+                <div className="border-t border-line pt-3 space-y-4">
+                  <span className="label">Atur gaya</span>
+                  <Chips label="Animasi" value={subAnim} onChange={setSubAnim} options={[
+                    { value: 'pop', label: 'Pop' }, { value: 'word-highlight', label: 'Glow' },
+                    { value: 'karaoke', label: 'Karaoke' }, { value: 'word-by-word', label: 'Per Kata' },
+                    { value: 'none', label: 'Polos' }]} />
+                  <Chips label="Font" value={subFont} onChange={setSubFont} options={[
+                    { value: 'Impact', label: 'Impact' }, { value: 'Inter', label: 'Inter' },
+                    { value: 'Arial', label: 'Arial' }, { value: 'Georgia', label: 'Serif' }]} />
+                  <Chips label="Latar teks" value={subBg} onChange={setSubBg} options={[
+                    { value: 'none', label: 'Tanpa' }, { value: 'box', label: 'Kotak gelap' }]} />
+                  <div>
+                    <span className="label">Warna teks</span>
+                    <ColorChips value={subColor} colors={SUB_COLORS} onChange={setSubColor} />
                   </div>
-                </details>
+                  <div>
+                    <span className="label">Warna kata aktif (highlight)</span>
+                    <div className="flex items-center gap-3">
+                      <ColorChips value={subHi} colors={SUB_COLORS} onChange={setSubHi} />
+                      <input type="color" value={subHi} onChange={(e) => setSubHi(e.target.value)} title="Custom"
+                        className="w-8 h-8 rounded border border-line bg-transparent cursor-pointer p-0" />
+                    </div>
+                  </div>
+                  <Chips label="Posisi" value={subPos} onChange={setSubPos} options={[
+                    { value: 'top', label: 'Atas' }, { value: 'middle', label: 'Tengah' }, { value: 'bottom', label: 'Bawah' }]} />
+                  <Chips label="Ukuran" value={subSize} onChange={setSubSize} options={[
+                    { value: 'S', label: 'Kecil' }, { value: 'M', label: 'Sedang' }, { value: 'L', label: 'Besar' }]} />
+                </div>
               </>
             )}
           </div>
