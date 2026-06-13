@@ -43,7 +43,6 @@ export default function ClipEditor({ jobId, clip, channel }) {
   const [subSize, setSubSize] = useState('M')
   const [subFont, setSubFont] = useState('Impact')
   const [subBg, setSubBg] = useState('none')
-  const [subStyleBusy, setSubStyleBusy] = useState(false)
 
   const [hookOn, setHookOn] = useState(!!clip.hook_text)
   const [hookText, setHookText] = useState(clip.hook_text || '')
@@ -55,7 +54,6 @@ export default function ClipEditor({ jobId, clip, channel }) {
   const [hookPosY, setHookPosY] = useState(16)
   const [hookSize, setHookSize] = useState('M')
   const [hookDur, setHookDur] = useState(3)
-  const [hookGenBusy, setHookGenBusy] = useState(false)
 
   const [autoBusy, setAutoBusy] = useState(false)
   const [autoErr, setAutoErr] = useState(null)
@@ -172,30 +170,6 @@ export default function ClipEditor({ jobId, clip, channel }) {
       setAutoErr([e?.message, e?.solution].filter(Boolean).join(' — ') || 'Auto AI gagal')
     } finally { setAutoBusy(false) }
   }
-  const regenHook = async () => {
-    setHookGenBusy(true)
-    try {
-      const r = await api(`/api/clip/${jobId}/${clip.index}/hook-text`, { method: 'POST' })
-      if (r.hook) setHookText(r.hook)
-      if (r.badgeText != null) setBadgeText(r.badgeText)
-      if (r.badgeColor) setBadgeColor(r.badgeColor)
-      if (r.template) setHookTemplate(r.template)
-      if (r.size) setHookSize(r.size)
-      setHookOn(true)
-    } catch { /* ignore */ } finally { setHookGenBusy(false) }
-  }
-  const genSubStyle = async () => {
-    setSubStyleBusy(true)
-    try {
-      const r = await api(`/api/clip/${jobId}/${clip.index}/subtitle-style`, { method: 'POST' })
-      if (r.fontColor) setSubColor(r.fontColor)
-      if (r.highlightColor) setSubHi(r.highlightColor)
-      if (r.animation) setSubAnim(r.animation)
-      if (r.position) setSubPos(r.position)
-      if (r.size) setSubSize(r.size)
-      setSubOn(true)
-    } catch { /* ignore */ } finally { setSubStyleBusy(false) }
-  }
   const runCaption = async () => {
     setCapBusy(true); setCapErr(null)
     try { setCap(await api(`/api/clip/${jobId}/${clip.index}/caption`, { method: 'POST' })) }
@@ -255,7 +229,8 @@ export default function ClipEditor({ jobId, clip, channel }) {
         </button>
       </div>
 
-      <div className="rounded-lg overflow-hidden mx-auto bg-ink flex items-center justify-center max-w-full"
+      <div className="flex flex-col md:flex-row gap-4 md:gap-5">
+        <div className="rounded-lg overflow-hidden mx-auto md:mx-0 shrink-0 bg-ink flex items-center justify-center self-start"
         style={{ width: 250, height: 444 }}>
         {videoUrl ? (
           <Player component={ShortVideo} inputProps={inputProps}
@@ -263,9 +238,10 @@ export default function ClipEditor({ jobId, clip, channel }) {
             compositionWidth={1080} compositionHeight={1920}
             style={{ width: 250, height: 444 }} controls loop />
         ) : <span className="text-white/60 text-xs">Memuat video…</span>}
-      </div>
+        </div>
 
-      <div className="flex gap-1 border-b border-line overflow-x-auto no-scrollbar">
+        <div className="flex-1 min-w-0 space-y-4">
+        <div className="flex gap-1 border-b border-line overflow-x-auto no-scrollbar">
         {TABS.map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={`px-2.5 py-2 text-[11px] uppercase tracking-wide border-b-2 -mb-px whitespace-nowrap transition-colors
@@ -291,12 +267,8 @@ export default function ClipEditor({ jobId, clip, channel }) {
             <Toggle label="Subtitle" on={subOn} setOn={setSubOn} />
             {subOn && (
               <>
-                <button className="btn btn-solid w-full" onClick={genSubStyle} disabled={subStyleBusy}>
-                  <Sparkles size={15} />{subStyleBusy ? 'Menganalisa (Groq)…' : 'AI: buatkan gaya subtitle'}
-                </button>
-                <p className="text-[11px] text-gray-mid">AI analisa vibe klip lalu pilih warna, animasi & posisi sendiri — atau atur sendiri di bawah.</p>
-                <div className="border-t border-line pt-3 space-y-4">
-                  <span className="label">Atur gaya</span>
+                <p className="text-[11px] text-gray-mid">Atur gaya subtitle sesukamu. (Mau otomatis? Pakai tab Auto.)</p>
+                <div className="space-y-4">
                   <Chips label="Animasi" value={subAnim} onChange={setSubAnim} options={[
                     { value: 'pop', label: 'Pop' }, { value: 'word-highlight', label: 'Glow' },
                     { value: 'karaoke', label: 'Karaoke' }, { value: 'word-by-word', label: 'Per Kata' },
@@ -333,10 +305,7 @@ export default function ClipEditor({ jobId, clip, channel }) {
             <Toggle label="Hook" on={hookOn} setOn={setHookOn} />
             {hookOn && (
               <>
-                <button className="btn btn-solid w-full" onClick={regenHook} disabled={hookGenBusy}>
-                  <Sparkles size={15} />{hookGenBusy ? 'Membuat (Groq)…' : 'AI: buat hook + gaya'}
-                </button>
-                <p className="text-[11px] text-gray-mid">AI bikin teks hook + pilih badge, warna & template. Edit manual di bawah kalau mau.</p>
+                <p className="text-[11px] text-gray-mid">Atur hook sesukamu. (Mau otomatis? Pakai tab Auto.)</p>
 
                 <Chips label="Template" value={hookTemplate} onChange={setHookTemplate} options={[
                   { value: 'box', label: 'Box' }, { value: 'minimal', label: 'Minimal' },
@@ -465,6 +434,8 @@ export default function ClipEditor({ jobId, clip, channel }) {
         <Download size={15} />{rendering ? `Merender… ${rendering.pct}%` : 'Render & Unduh .mp4'}
       </button>
       <p className="text-xs text-gray-mid text-center">Render di browser — hasil = preview, persis.</p>
+        </div>
+      </div>
     </div>
   )
 }
