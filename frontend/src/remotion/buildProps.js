@@ -38,6 +38,8 @@ export function buildShortProps(cfg = {}, { captions = [], durationSec = 10, fps
       ? {
         text: cfg.hookText.trim(), badgeText: (cfg.badgeText || '').trim() || undefined,
         badgeColor: cfg.badgeColor || '#2D7FF9', position: cfg.hookPos || 'top',
+        posX: typeof cfg.hookPosX === 'number' ? cfg.hookPosX : undefined,
+        posY: typeof cfg.hookPosY === 'number' ? cfg.hookPosY : undefined,
         size: cfg.hookSize || 'M', entranceAnimation: 'spring',
         displayDurationSec: cfg.hookDur === 'full' ? effDur : (cfg.hookDur || 3),
       }

@@ -155,15 +155,25 @@ def face_centers(video_path, segments: list) -> list:
 
 
 HOOK_PROMPT = """
-Buat SATU teks hook overlay pendek (3-9 kata) yang scroll-stopping untuk klip
-pendek viral, dari transkrip ini. Bahasa SAMA dengan transkrip. Tanpa tanda kutip.
+Buat hook overlay untuk klip pendek viral DAN pilih gayanya yang paling nampol.
+Analisa vibe transkrip lalu tentukan semuanya sendiri (jangan asal).
 
 JUDUL: {title}
 TRANSKRIP:
 {transcript}
 
-Kembalikan HANYA JSON: {{"hook":"..."}}
+Tentukan:
+- "hook": teks hook 3-9 kata, scroll-stopping, bahasa SAMA dengan transkrip, tanpa tanda kutip.
+- "badgeText": label kecil di atas hook, 1-3 kata (mis. "BREAKING", "FAKTA", "STORY",
+  "PART 1", "REAL TALK"). Pilih yang pas dengan kontennya. Boleh kosong "".
+- "badgeColor": warna badge (hex) yang kontras & eye-catching sesuai mood.
+- "size": "S", "M", atau "L".
+
+Kembalikan HANYA JSON:
+{{"hook":"...","badgeText":"...","badgeColor":"#2D7FF9","size":"M"}}
 """
+
+_HOOK_SIZE = {"S", "M", "L"}
 
 
 def generate_hook(transcript_text: str, title: str, api_key: str) -> dict:
@@ -176,7 +186,71 @@ def generate_hook(transcript_text: str, title: str, api_key: str) -> dict:
         obj = _extract_json(text)
     except Exception:  # noqa: BLE001
         obj = {}
-    return {"hook": str(obj.get("hook") or "").strip()[:160]}
+    size = str(obj.get("size") or "").strip().upper()
+    return {
+        "hook": str(obj.get("hook") or "").strip()[:160],
+        "badgeText": str(obj.get("badgeText") or "").strip()[:40],
+        "badgeColor": _hex_or(obj.get("badgeColor"), "#2D7FF9"),
+        "size": size if size in _HOOK_SIZE else "M",
+    }
+
+
+SUBTITLE_PROMPT = """
+Kamu motion designer subtitle untuk video pendek viral (TikTok/Reels/Shorts).
+Dari judul + transkrip klip ini, ANALISA vibe-nya (energik / hype / lucu / serius /
+edukatif / emosional) lalu PILIH gaya subtitle paling cocok. Jangan asal —
+sesuaikan dengan rasa kontennya.
+
+JUDUL: {title}
+TRANSKRIP:
+{transcript}
+
+Tentukan:
+- "fontColor": warna teks utama (hex). Biasanya "#FFFFFF" paling aman.
+- "highlightColor": warna kata yang sedang diucapkan (hex). Pilih yang KONTRAS & pop
+  (mis. #FFDD00 kuning, #39E0A5 hijau, #36C5FF cyan) sesuai mood.
+- "animation": "pop" (energik, serbaguna) / "word-highlight" (glow lembut, kalem) /
+  "karaoke" (blok highlight, hype/musik) / "word-by-word" (satu kata fokus, fast-talk).
+- "position": "top", "middle", atau "bottom".
+- "size": "S", "M", atau "L" (hype/cepat cenderung L).
+
+Kembalikan HANYA JSON:
+{{"fontColor":"#FFFFFF","highlightColor":"#FFDD00","animation":"pop","position":"bottom","size":"M"}}
+"""
+
+_SUB_ANIMS = {"pop", "word-highlight", "karaoke", "word-by-word"}
+_SUB_POS = {"top", "middle", "bottom"}
+_SUB_SIZE = {"S", "M", "L"}
+_HEX_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
+
+
+def _hex_or(v, default: str) -> str:
+    v = str(v or "").strip()
+    return v if _HEX_RE.match(v) else default
+
+
+def generate_subtitle_style(transcript_text: str, title: str, api_key: str) -> dict:
+    """Groq picks a subtitle look (color/animation/position/size) that fits the
+    clip's vibe — so the user doesn't have to choose from presets."""
+    if not api_key:
+        raise AppError("NO_API_KEY")
+    prompt = SUBTITLE_PROMPT.format(title=(title or "")[:200],
+                                    transcript=(transcript_text or "")[:6000])
+    text = call_llm(api_key, prompt, json_mode=True, temperature=0.5)
+    try:
+        obj = _extract_json(text)
+    except Exception:  # noqa: BLE001
+        obj = {}
+    anim = str(obj.get("animation") or "").strip()
+    pos = str(obj.get("position") or "").strip().lower()
+    size = str(obj.get("size") or "").strip().upper()
+    return {
+        "fontColor": _hex_or(obj.get("fontColor"), "#FFFFFF"),
+        "highlightColor": _hex_or(obj.get("highlightColor"), "#FFDD00"),
+        "animation": anim if anim in _SUB_ANIMS else "pop",
+        "position": pos if pos in _SUB_POS else "bottom",
+        "size": size if size in _SUB_SIZE else "M",
+    }
 
 
 def generate_caption(transcript_text: str, title: str, api_key: str) -> dict:

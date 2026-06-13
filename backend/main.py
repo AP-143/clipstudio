@@ -311,6 +311,27 @@ async def regen_hook(job_id: str, index: int,
     return JSONResponse(content=res, headers={"Cache-Control": "no-cache"})
 
 
+@app.post("/api/clip/{job_id}/{index}/subtitle-style")
+async def subtitle_style(job_id: str, index: int,
+                         x_groq_key: Optional[str] = Header(None)):
+    """Groq → a subtitle style (color/animation/position/size) matching the clip."""
+    clip = _require_clip(job_id, index)
+    t = jobs.load_raw(job_id, "transcript") or {}
+    start, end = clip["start"], clip["end"]
+    parts = [(s.get("text") or "").strip() for s in t.get("segments", [])
+             if s["end"] > start and s["start"] < end]
+    import autoedit
+    try:
+        res = await asyncio.to_thread(
+            autoedit.generate_subtitle_style, " ".join(p for p in parts if p),
+            clip.get("title", ""), x_groq_key)
+    except AppError as e:
+        return _err_response(e)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(500, f"Generate subtitle gagal: {e}")
+    return JSONResponse(content=res, headers={"Cache-Control": "no-cache"})
+
+
 @app.post("/api/clip/{job_id}/{index}/edit-config")
 async def save_edit_config(job_id: str, index: int, body: dict):
     """Persist the editor config for this clip (loaded back on re-open)."""

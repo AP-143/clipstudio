@@ -46,10 +46,19 @@ function Box({ config, displayFrames }) {
   const badgeText = config.badgeText
   const badgeColor = config.badgeColor || '#2D7FF9'
 
+  // Free placement: when posX/posY (0-100%) are given, center the box on that
+  // point; otherwise fall back to the top/center/bottom preset.
+  const hasXY = typeof config.posX === 'number' && typeof config.posY === 'number'
+  const outer = hasXY
+    ? { position: 'absolute', left: `${config.posX}%`, top: `${config.posY}%`,
+        transform: 'translate(-50%, -50%)', display: 'flex', justifyContent: 'center' }
+    : { position: 'absolute', left: 0, right: 0, display: 'flex', justifyContent: 'center', ...pos }
+
   return (
-    <div style={{ position: 'absolute', left: 0, right: 0, display: 'flex', justifyContent: 'center', ...pos }}>
+    <div style={outer}>
       <div style={{
-        opacity, transform: `scale(${animScale}) translateY(${translateY}px)`, maxWidth: '88%',
+        opacity, transform: `scale(${animScale}) translateY(${translateY}px)`,
+        maxWidth: hasXY ? '900px' : '88%',
         backgroundColor: '#FFFFFF', borderRadius: 22,
         padding: `${22 * scale}px ${26 * scale}px`, boxShadow: '0 8px 22px rgba(0,0,0,0.28)',
         textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: `${14 * scale}px`,

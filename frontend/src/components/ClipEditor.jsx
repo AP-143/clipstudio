@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Player } from '@remotion/player'
-import { Download, Sparkles, Copy, Check, Type, RotateCcw, RefreshCw, Music } from 'lucide-react'
+import { Download, Sparkles, Copy, Check, Type, RotateCcw, Music } from 'lucide-react'
 import { API_BASE, api } from '../config.js'
 import { ShortVideo } from '../remotion/ShortVideo.jsx'
 import { buildShortProps } from '../remotion/buildProps.js'
@@ -23,7 +23,7 @@ const SUB_COLORS = [
 ]
 const TABS = [
   { id: 'auto', label: 'Auto' }, { id: 'sub', label: 'Subtitle' },
-  { id: 'hook', label: 'Hook' }, { id: 'fx', label: 'Efek' },
+  { id: 'hook', label: 'Hook' },
   { id: 'trim', label: 'Trim' }, { id: 'music', label: 'Musik' },
   { id: 'caption', label: 'Teks' },
 ]
@@ -38,20 +38,21 @@ export default function ClipEditor({ jobId, clip, channel }) {
   const [subOn, setSubOn] = useState(true)
   const [subPos, setSubPos] = useState('bottom')
   const [subColor, setSubColor] = useState('#FFFFFF')
+  const [subHi, setSubHi] = useState('#FFDD00')
   const [subAnim, setSubAnim] = useState('pop')
   const [subSize, setSubSize] = useState('M')
+  const [subStyleBusy, setSubStyleBusy] = useState(false)
 
   const [hookOn, setHookOn] = useState(!!clip.hook_text)
   const [hookText, setHookText] = useState(clip.hook_text || '')
   const [badgeText, setBadgeText] = useState(`Source: ${channel || 'Unknown'}`)
   const [badgeColor, setBadgeColor] = useState('#2D7FF9')
-  const [hookPos, setHookPos] = useState('top')
+  const [hookPosX, setHookPosX] = useState(50)
+  const [hookPosY, setHookPosY] = useState(16)
   const [hookSize, setHookSize] = useState('M')
   const [hookDur, setHookDur] = useState(3)
   const [hookGenBusy, setHookGenBusy] = useState(false)
 
-  const [effectsOn, setEffectsOn] = useState(false)
-  const [effects, setEffects] = useState(null)
   const [autoBusy, setAutoBusy] = useState(false)
   const [autoErr, setAutoErr] = useState(null)
 
@@ -97,17 +98,17 @@ export default function ClipEditor({ jobId, clip, channel }) {
       if (c.subOn != null) setSubOn(c.subOn)
       if (c.subPos) setSubPos(c.subPos)
       if (c.subColor) setSubColor(c.subColor)
+      if (c.subHi) setSubHi(c.subHi)
       if (c.subAnim) setSubAnim(c.subAnim)
       if (c.subSize) setSubSize(c.subSize)
       if (c.hookOn != null) setHookOn(c.hookOn)
       if (c.hookText != null) setHookText(c.hookText)
       if (c.badgeText != null) setBadgeText(c.badgeText)
       if (c.badgeColor) setBadgeColor(c.badgeColor)
-      if (c.hookPos) setHookPos(c.hookPos)
+      if (typeof c.hookPosX === 'number') setHookPosX(c.hookPosX)
+      if (typeof c.hookPosY === 'number') setHookPosY(c.hookPosY)
       if (c.hookSize) setHookSize(c.hookSize)
       if (c.hookDur != null) setHookDur(c.hookDur)
-      if (c.effectsOn != null) setEffectsOn(c.effectsOn)
-      if (c.effects) setEffects(c.effects)
       if (c.trimIn != null) setTrimIn(c.trimIn)
       if (c.trimOut !== undefined) setTrimOut(c.trimOut)
       if (c.musicVolume != null) setMusicVolume(c.musicVolume)
@@ -117,11 +118,11 @@ export default function ClipEditor({ jobId, clip, channel }) {
   }, [])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const cfg = useMemo(() => ({
-    subOn, subPos, subColor, subAnim, subSize,
-    hookOn, hookText, badgeText, badgeColor, hookPos, hookSize, hookDur,
-    effectsOn, effects, trimIn, trimOut, musicVolume, cap,
-  }), [subOn, subPos, subColor, subAnim, subSize, hookOn, hookText, badgeText,
-    badgeColor, hookPos, hookSize, hookDur, effectsOn, effects, trimIn, trimOut, musicVolume, cap])
+    subOn, subPos, subColor, subHi, subAnim, subSize,
+    hookOn, hookText, badgeText, badgeColor, hookPosX, hookPosY, hookSize, hookDur,
+    trimIn, trimOut, musicVolume, cap,
+  }), [subOn, subPos, subColor, subHi, subAnim, subSize, hookOn, hookText, badgeText,
+    badgeColor, hookPosX, hookPosY, hookSize, hookDur, trimIn, trimOut, musicVolume, cap])
 
   // --- debounced persist ---------------------------------------------------
   useEffect(() => {
@@ -143,9 +144,21 @@ export default function ClipEditor({ jobId, clip, channel }) {
   const runAuto = async () => {
     setAutoBusy(true); setAutoErr(null)
     try {
-      const r = await api(`/api/clip/${jobId}/${clip.index}/auto-effects`, { method: 'POST' })
-      setEffects(r); setEffectsOn(true); setSubOn(true)
-      if (clip.hook_text) setHookOn(true)
+      const [s, h] = await Promise.all([
+        api(`/api/clip/${jobId}/${clip.index}/subtitle-style`, { method: 'POST' }),
+        api(`/api/clip/${jobId}/${clip.index}/hook-text`, { method: 'POST' }),
+      ])
+      if (s.fontColor) setSubColor(s.fontColor)
+      if (s.highlightColor) setSubHi(s.highlightColor)
+      if (s.animation) setSubAnim(s.animation)
+      if (s.position) setSubPos(s.position)
+      if (s.size) setSubSize(s.size)
+      setSubOn(true)
+      if (h.hook) setHookText(h.hook)
+      if (h.badgeText != null) setBadgeText(h.badgeText)
+      if (h.badgeColor) setBadgeColor(h.badgeColor)
+      if (h.size) setHookSize(h.size)
+      setHookOn(true)
     } catch (e) {
       setAutoErr([e?.message, e?.solution].filter(Boolean).join(' — ') || 'Auto AI gagal')
     } finally { setAutoBusy(false) }
@@ -155,7 +168,23 @@ export default function ClipEditor({ jobId, clip, channel }) {
     try {
       const r = await api(`/api/clip/${jobId}/${clip.index}/hook-text`, { method: 'POST' })
       if (r.hook) setHookText(r.hook)
+      if (r.badgeText != null) setBadgeText(r.badgeText)
+      if (r.badgeColor) setBadgeColor(r.badgeColor)
+      if (r.size) setHookSize(r.size)
+      setHookOn(true)
     } catch { /* ignore */ } finally { setHookGenBusy(false) }
+  }
+  const genSubStyle = async () => {
+    setSubStyleBusy(true)
+    try {
+      const r = await api(`/api/clip/${jobId}/${clip.index}/subtitle-style`, { method: 'POST' })
+      if (r.fontColor) setSubColor(r.fontColor)
+      if (r.highlightColor) setSubHi(r.highlightColor)
+      if (r.animation) setSubAnim(r.animation)
+      if (r.position) setSubPos(r.position)
+      if (r.size) setSubSize(r.size)
+      setSubOn(true)
+    } catch { /* ignore */ } finally { setSubStyleBusy(false) }
   }
   const runCaption = async () => {
     setCapBusy(true); setCapErr(null)
@@ -175,16 +204,16 @@ export default function ClipEditor({ jobId, clip, channel }) {
     }).catch(() => {})
   }
   const resetAll = () => {
-    setSubOn(false); setHookOn(false); setEffectsOn(false); setEffects(null)
+    setSubOn(false); setHookOn(false)
     setCap(null); setAutoErr(null); setCapErr(null)
-    setSubPos('bottom'); setSubColor('#FFFFFF'); setSubAnim('pop'); setSubSize('M')
-    setHookPos('top'); setHookSize('M'); setHookDur(3); setBadgeColor('#2D7FF9')
+    setSubPos('bottom'); setSubColor('#FFFFFF'); setSubHi('#FFDD00'); setSubAnim('pop'); setSubSize('M')
+    setHookPosX(50); setHookPosY(16); setHookSize('M'); setHookDur(3); setBadgeColor('#2D7FF9')
     setHookText(clip.hook_text || ''); setBadgeText(`Source: ${channel || 'Unknown'}`)
     setTrimIn(0); setTrimOut(null)
     if (musicUrl) URL.revokeObjectURL(musicUrl)
     setMusicUrl(null); setMusicName('')
   }
-  const hasEdits = subOn || hookOn || effectsOn || cap || trimIn > 0 || trimOut != null || musicUrl
+  const hasEdits = subOn || hookOn || cap || trimIn > 0 || trimOut != null || musicUrl
 
   const doRender = async () => {
     if (!videoUrl) return
@@ -237,12 +266,11 @@ export default function ClipEditor({ jobId, clip, channel }) {
       <div className="min-h-[150px] space-y-4">
         {tab === 'auto' && (
           <div className="space-y-3">
-            <p className="text-xs text-gray-mid">Sekali klik: Groq isi zoom pintar + nyalain subtitle & hook.</p>
+            <p className="text-xs text-gray-mid">Sekali klik: AI analisa klip lalu bikin subtitle (gaya otomatis) + hook (teks & gaya otomatis).</p>
             <button className="btn btn-solid w-full" onClick={runAuto} disabled={autoBusy}>
               <Sparkles size={15} />{autoBusy ? 'Menganalisa (Groq)…' : 'Auto AI'}
             </button>
             {autoErr && <p className="text-xs text-red-400 break-all">{autoErr}</p>}
-            {effects && <p className="text-[11px] text-gray-mid">✓ {effects.segments?.length || 0} segmen efek</p>}
           </div>
         )}
 
@@ -251,18 +279,35 @@ export default function ClipEditor({ jobId, clip, channel }) {
             <Toggle label="Subtitle" on={subOn} setOn={setSubOn} />
             {subOn && (
               <>
-                <Chips label="Posisi" value={subPos} onChange={setSubPos} options={[
-                  { value: 'top', label: 'Atas' }, { value: 'middle', label: 'Tengah' }, { value: 'bottom', label: 'Bawah' }]} />
-                <div>
-                  <span className="label">Warna kata aktif</span>
-                  <ColorChips value={subColor} colors={SUB_COLORS} onChange={setSubColor} />
-                </div>
-                <Chips label="Animasi" value={subAnim} onChange={setSubAnim} options={[
-                  { value: 'pop', label: 'Pop' }, { value: 'word-highlight', label: 'Glow' },
-                  { value: 'karaoke', label: 'Karaoke' }, { value: 'word-by-word', label: 'Per Kata' },
-                  { value: 'none', label: 'Polos' }]} />
-                <Chips label="Ukuran" value={subSize} onChange={setSubSize} options={[
-                  { value: 'S', label: 'Kecil' }, { value: 'M', label: 'Sedang' }, { value: 'L', label: 'Besar' }]} />
+                <button className="btn btn-solid w-full" onClick={genSubStyle} disabled={subStyleBusy}>
+                  <Sparkles size={15} />{subStyleBusy ? 'Menganalisa (Groq)…' : 'AI: buatkan gaya subtitle'}
+                </button>
+                <p className="text-[11px] text-gray-mid">AI analisa vibe klip lalu pilih warna, animasi & posisi sendiri. Atur manual di bawah kalau mau ubah.</p>
+                <details className="border-t border-line pt-2">
+                  <summary className="label cursor-pointer select-none">Atur manual (opsional)</summary>
+                  <div className="space-y-4 pt-3">
+                    <Chips label="Posisi" value={subPos} onChange={setSubPos} options={[
+                      { value: 'top', label: 'Atas' }, { value: 'middle', label: 'Tengah' }, { value: 'bottom', label: 'Bawah' }]} />
+                    <div>
+                      <span className="label">Warna teks</span>
+                      <ColorChips value={subColor} colors={SUB_COLORS} onChange={setSubColor} />
+                    </div>
+                    <div>
+                      <span className="label">Warna kata aktif (highlight)</span>
+                      <div className="flex items-center gap-3">
+                        <ColorChips value={subHi} colors={SUB_COLORS} onChange={setSubHi} />
+                        <input type="color" value={subHi} onChange={(e) => setSubHi(e.target.value)} title="Custom"
+                          className="w-8 h-8 rounded border border-line bg-transparent cursor-pointer p-0" />
+                      </div>
+                    </div>
+                    <Chips label="Animasi" value={subAnim} onChange={setSubAnim} options={[
+                      { value: 'pop', label: 'Pop' }, { value: 'word-highlight', label: 'Glow' },
+                      { value: 'karaoke', label: 'Karaoke' }, { value: 'word-by-word', label: 'Per Kata' },
+                      { value: 'none', label: 'Polos' }]} />
+                    <Chips label="Ukuran" value={subSize} onChange={setSubSize} options={[
+                      { value: 'S', label: 'Kecil' }, { value: 'M', label: 'Sedang' }, { value: 'L', label: 'Besar' }]} />
+                  </div>
+                </details>
               </>
             )}
           </div>
@@ -273,19 +318,18 @@ export default function ClipEditor({ jobId, clip, channel }) {
             <Toggle label="Hook" on={hookOn} setOn={setHookOn} />
             {hookOn && (
               <>
+                <button className="btn btn-solid w-full" onClick={regenHook} disabled={hookGenBusy}>
+                  <Sparkles size={15} />{hookGenBusy ? 'Membuat (Groq)…' : 'AI: buat hook + gaya'}
+                </button>
+                <p className="text-[11px] text-gray-mid">AI bikin teks hook + pilih badge & warnanya. Edit manual di bawah kalau mau.</p>
+
                 <div>
-                  <span className="label">Badge sumber</span>
-                  <input className="input" value={badgeText} onChange={(e) => setBadgeText(e.target.value)} placeholder="Source: …" />
+                  <span className="label">Teks hook</span>
+                  <textarea className="input min-h-[60px]" value={hookText} onChange={(e) => setHookText(e.target.value)} placeholder="Judul hook…" />
                 </div>
                 <div>
-                  <div className="flex items-center justify-between">
-                    <span className="label">Teks hook</span>
-                    <button onClick={regenHook} disabled={hookGenBusy}
-                      className="flex items-center gap-1 text-[11px] text-soft hover:text-ink disabled:opacity-40">
-                      <RefreshCw size={11} className={hookGenBusy ? 'animate-spin' : ''} /> AI ulang
-                    </button>
-                  </div>
-                  <textarea className="input min-h-[60px]" value={hookText} onChange={(e) => setHookText(e.target.value)} placeholder="Judul hook…" />
+                  <span className="label">Badge</span>
+                  <input className="input" value={badgeText} onChange={(e) => setBadgeText(e.target.value)} placeholder="Source: … / BREAKING / kosong" />
                 </div>
                 <div>
                   <span className="label">Warna badge</span>
@@ -295,21 +339,31 @@ export default function ClipEditor({ jobId, clip, channel }) {
                       className="w-8 h-8 rounded border border-line bg-transparent cursor-pointer p-0" />
                   </div>
                 </div>
-                <Chips label="Posisi" value={hookPos} onChange={setHookPos} options={[
-                  { value: 'top', label: 'Atas' }, { value: 'center', label: 'Tengah' }, { value: 'bottom', label: 'Bawah' }]} />
+
+                {/* Free placement — drag the sliders, posisi update live di preview */}
+                <div>
+                  <span className="label">Posisi horizontal: {hookPosX}%</span>
+                  <input type="range" min={0} max={100} step={1} value={hookPosX}
+                    onChange={(e) => setHookPosX(parseInt(e.target.value, 10))} className="w-full" />
+                </div>
+                <div>
+                  <span className="label">Posisi vertikal: {hookPosY}%</span>
+                  <input type="range" min={0} max={100} step={1} value={hookPosY}
+                    onChange={(e) => setHookPosY(parseInt(e.target.value, 10))} className="w-full" />
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  {[['Atas', 50, 16], ['Tengah', 50, 50], ['Bawah', 50, 82]].map(([l, x, y]) => (
+                    <button key={l} onClick={() => { setHookPosX(x); setHookPosY(y) }}
+                      className="text-[11px] px-2.5 py-1 rounded-full border border-line hover:border-faint">{l}</button>
+                  ))}
+                </div>
+
                 <Chips label="Ukuran" value={hookSize} onChange={setHookSize} options={[
                   { value: 'S', label: 'Kecil' }, { value: 'M', label: 'Sedang' }, { value: 'L', label: 'Besar' }]} />
                 <Chips label="Durasi tampil" value={hookDur} onChange={setHookDur} options={[
                   { value: 3, label: '3 dtk' }, { value: 5, label: '5 dtk' }, { value: 'full', label: 'Sepanjang' }]} />
               </>
             )}
-          </div>
-        )}
-
-        {tab === 'fx' && (
-          <div className="space-y-3">
-            <Toggle label="Efek (zoom + warna)" on={effectsOn} setOn={setEffectsOn} />
-            <p className="text-[11px] text-gray-mid">Zoom ke wajah; timing dari Groq (tab Auto). Zoom = sedikit turun ketajaman.</p>
           </div>
         )}
 
