@@ -28,20 +28,38 @@ function useJobState() {
     document.title = 'ClipStudio'
   }, [])
 
-  // Recover on first load: if a job id is stored, fetch its status — and if it
-  // already finished, pull the result too so the done view / results render
-  // immediately (e.g. after a refresh or opening a job from History).
+  // Recover on first load. If a job id is stored, fetch its status (and the
+  // result if it already finished). If there's no tracked job — or the tracked
+  // one already finished/failed while a NEWER job is actually running on the
+  // server — adopt that running job, so the UI never gets stuck showing a stale
+  // job while a fresh generate progresses in the background.
   useEffect(() => {
-    if (!jobId) return
+    let cancelled = false
+    const adoptActive = async () => {
+      try {
+        const { jobs: list } = await api('/api/jobs')
+        const live = (list || []).find((j) => !TERMINAL.has(j.status))
+        if (live && !cancelled) {
+          localStorage.setItem(LS.jobId, live.job_id)
+          setJobId(live.job_id)
+          setStatus(null)
+        }
+      } catch { /* ignore */ }
+    }
+    if (!jobId) { adoptActive(); return () => { cancelled = true } }
     api(`/api/status/${jobId}`).then((st) => {
+      if (cancelled) return
       setStatus(st)
       if (st.status === 'done') {
         api(`/api/result/${jobId}`).then((res) => {
           setResult(res)
           localStorage.setItem(LS.jobResult, JSON.stringify(res))
         }).catch(() => {})
+      } else if (TERMINAL.has(st.status)) {
+        adoptActive()  // this one's done/failed — pick up a newer running job
       }
     }).catch(() => clear())
+    return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
