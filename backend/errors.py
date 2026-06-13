@@ -7,8 +7,8 @@ ERRORS = {
         "solution": "Buka Settings dan masukkan API key dari console.groq.com",
     },
     "YOUTUBE_NOT_1080P": {
-        "message": "Video YouTube tidak tersedia dalam 1080p",
-        "solution": "Upload cookies YouTube di Settings, atau upload file video langsung",
+        "message": "Video YouTube tidak bisa diunduh",
+        "solution": "Isi cookies YouTube di Settings (untuk video terbatas/usia), atau upload file video langsung",
     },
     "VIDEO_TOO_SHORT": {
         "message": "Video terlalu pendek (minimal 2 menit)",

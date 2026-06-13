@@ -58,20 +58,24 @@ def fetch_metadata(url: str, cookies: Optional[str] = None) -> dict:
         raise AppError("YOUTUBE_NOT_1080P",
                        detail=out.stderr.strip()[-400:] or "yt-dlp gagal")
     info = _json.loads(out.stdout)
+    heights = [f.get("height") for f in info.get("formats", []) if f.get("height")]
     return {
         "video_title": info.get("title"),
         "channel_name": info.get("uploader") or info.get("channel"),
         "duration": float(info.get("duration") or 0),
         "upload_date": info.get("upload_date"),
         "video_url": info.get("webpage_url") or url,
-        "formats_have_1080": any(
-            (f.get("height") == 1080) for f in info.get("formats", [])
-        ),
+        # Best available vertical resolution. We no longer require EXACTLY 1080p:
+        # plenty of videos publish non-standard heights (e.g. 914/1218/1826 for
+        # odd aspect ratios) and were wrongly rejected. We take the best the
+        # source offers (capped on download) and crop to 1080x1920 anyway.
+        "best_height": max(heights) if heights else 0,
     }
 
 
-def _probe_1080(job_id: str, url: str, cookies: Optional[str]) -> dict:
-    """Probe metadata, retrying until 1080p shows up (it's flaky on YouTube)."""
+def _probe_metadata(job_id: str, url: str, cookies: Optional[str]) -> dict:
+    """Probe metadata, retrying while only low-res formats show up (YouTube's
+    hi-res extraction is flaky — a retry often surfaces more)."""
     last_detail = ""
     for attempt in range(1, _MAX_ATTEMPTS + 1):
         jobs.check_cancelled(job_id)
@@ -80,9 +84,10 @@ def _probe_1080(job_id: str, url: str, cookies: Optional[str]) -> dict:
         except AppError as e:
             last_detail = e.detail or "yt-dlp gagal"
         else:
-            if meta["formats_have_1080"]:
+            if meta["best_height"] >= 480:
                 return meta
-            last_detail = f"1080p belum muncul (percobaan {attempt})"
+            last_detail = (f"hanya resolusi rendah ({meta['best_height']}p, "
+                           f"percobaan {attempt})")
         if attempt < _MAX_ATTEMPTS:
             time.sleep(_RETRY_DELAY)
     raise AppError("YOUTUBE_NOT_1080P",
@@ -96,13 +101,16 @@ def _run_yt_dlp(job_id: str, url: str, out_path: Path,
     # the container's ffmpeg/NVDEC fails to decode ("av1 … Failed to get pixel
     # format") at the scene-detect/crop stage. avc1 decodes everywhere; fall back
     # to VP9, then any 1080p (incl. AV1) only as a last resort.
+    # Best video up to 1440p, preferring H.264 (avc1) then VP9 over https, so
+    # any decent source works — not only exactly-1080p. avc1 on YouTube tops out
+    # at 1080 so normal videos still grab 1080p H.264; odd resolutions get their
+    # best. AV1 only as a last resort (the container can't hw-decode it well).
     fmt = (
-        "bestvideo[height=1080][vcodec^=avc1][protocol^=https]+bestaudio[ext=m4a]/"
-        "bestvideo[height=1080][vcodec^=avc1][protocol^=https]+bestaudio/"
-        "bestvideo[height=1080][vcodec^=vp9][protocol^=https]+bestaudio/"
-        "bestvideo[height=1080][protocol^=https]+bestaudio/"
-        "bestvideo[height=1080]+bestaudio/"
-        "best[height=1080]"
+        "bestvideo[height<=1440][vcodec^=avc1][protocol^=https]+bestaudio[ext=m4a]/"
+        "bestvideo[height<=1440][vcodec^=avc1][protocol^=https]+bestaudio/"
+        "bestvideo[height<=1440][vcodec^=vp9][protocol^=https]+bestaudio/"
+        "bestvideo[height<=1440][protocol^=https]+bestaudio/"
+        "bestvideo[height<=1440]+bestaudio/best"
     )
     cmd = [
         "yt-dlp", "-f", fmt, "--merge-output-format", "mp4",
@@ -140,8 +148,9 @@ def _run_yt_dlp(job_id: str, url: str, out_path: Path,
 
 def download(job_id: str, url: str, cookies: Optional[str] = None,
              progress_cb=None) -> Path:
-    """Download the source at exactly 1080p, retrying the flaky bits."""
-    meta = _probe_1080(job_id, url, cookies)
+    """Download the source at the best available resolution (capped), retrying
+    the flaky bits."""
+    meta = _probe_metadata(job_id, url, cookies)
 
     jobs.set_metadata(job_id, source_url=url,
                       video_title=meta["video_title"],
