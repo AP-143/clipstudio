@@ -167,13 +167,17 @@ Tentukan:
 - "badgeText": label kecil di atas hook, 1-3 kata (mis. "BREAKING", "FAKTA", "STORY",
   "PART 1", "REAL TALK"). Pilih yang pas dengan kontennya. Boleh kosong "".
 - "badgeColor": warna badge (hex) yang kontras & eye-catching sesuai mood.
+- "template": gaya tampilan, salah satu dari "box" (kartu putih rapi),
+  "minimal" (teks bersih tanpa kotak), "bar" (teks di atas bar warna),
+  "outline" (teks tebal dengan garis tepi hitam). Pilih yang cocok dengan vibe.
 - "size": "S", "M", atau "L".
 
 Kembalikan HANYA JSON:
-{{"hook":"...","badgeText":"...","badgeColor":"#2D7FF9","size":"M"}}
+{{"hook":"...","badgeText":"...","badgeColor":"#2D7FF9","template":"box","size":"M"}}
 """
 
 _HOOK_SIZE = {"S", "M", "L"}
+_HOOK_TEMPLATE = {"box", "minimal", "bar", "outline"}
 
 
 def generate_hook(transcript_text: str, title: str, api_key: str) -> dict:
@@ -187,10 +191,12 @@ def generate_hook(transcript_text: str, title: str, api_key: str) -> dict:
     except Exception:  # noqa: BLE001
         obj = {}
     size = str(obj.get("size") or "").strip().upper()
+    template = str(obj.get("template") or "").strip().lower()
     return {
         "hook": str(obj.get("hook") or "").strip()[:160],
         "badgeText": str(obj.get("badgeText") or "").strip()[:40],
         "badgeColor": _hex_or(obj.get("badgeColor"), "#2D7FF9"),
+        "template": template if template in _HOOK_TEMPLATE else "box",
         "size": size if size in _HOOK_SIZE else "M",
     }
 

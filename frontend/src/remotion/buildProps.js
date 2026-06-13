@@ -14,10 +14,14 @@ export function buildShortProps(cfg = {}, { captions = [], durationSec = 10, fps
 
   const subStyle = {
     ...DEFAULT_SUBTITLE_STYLE,
+    fontFamily: cfg.subFont || DEFAULT_SUBTITLE_STYLE.fontFamily,
     fontColor: cfg.subColor || '#FFFFFF',
     highlightColor: cfg.subHi || '#FFDD00',
     animation: cfg.subAnim || 'pop',
     fontSize: SUB_SIZE[cfg.subSize || 'M'],
+    bgColor: '#000000',
+    bgOpacity: cfg.subBg === 'box' ? 0.55 : 0,
+    borderWidth: cfg.subBg === 'box' ? 0 : DEFAULT_SUBTITLE_STYLE.borderWidth,
   }
 
   const caps = captions
@@ -37,9 +41,10 @@ export function buildShortProps(cfg = {}, { captions = [], durationSec = 10, fps
     hook: (cfg.hookOn && (cfg.hookText || '').trim())
       ? {
         text: cfg.hookText.trim(), badgeText: (cfg.badgeText || '').trim() || undefined,
-        badgeColor: cfg.badgeColor || '#2D7FF9', position: cfg.hookPos || 'top',
-        posX: typeof cfg.hookPosX === 'number' ? cfg.hookPosX : undefined,
-        posY: typeof cfg.hookPosY === 'number' ? cfg.hookPosY : undefined,
+        badgeColor: cfg.badgeColor || '#2D7FF9',
+        template: cfg.hookTemplate || 'box', textColor: cfg.hookTextColor || '#FFFFFF',
+        align: cfg.hookAlign || 'center',
+        posY: typeof cfg.hookPosY === 'number' ? cfg.hookPosY : 16,
         size: cfg.hookSize || 'M', entranceAnimation: 'spring',
         displayDurationSec: cfg.hookDur === 'full' ? effDur : (cfg.hookDur || 3),
       }

@@ -41,13 +41,17 @@ export default function ClipEditor({ jobId, clip, channel }) {
   const [subHi, setSubHi] = useState('#FFDD00')
   const [subAnim, setSubAnim] = useState('pop')
   const [subSize, setSubSize] = useState('M')
+  const [subFont, setSubFont] = useState('Impact')
+  const [subBg, setSubBg] = useState('none')
   const [subStyleBusy, setSubStyleBusy] = useState(false)
 
   const [hookOn, setHookOn] = useState(!!clip.hook_text)
   const [hookText, setHookText] = useState(clip.hook_text || '')
   const [badgeText, setBadgeText] = useState(`Source: ${channel || 'Unknown'}`)
   const [badgeColor, setBadgeColor] = useState('#2D7FF9')
-  const [hookPosX, setHookPosX] = useState(50)
+  const [hookTemplate, setHookTemplate] = useState('box')
+  const [hookTextColor, setHookTextColor] = useState('#FFFFFF')
+  const [hookAlign, setHookAlign] = useState('center')
   const [hookPosY, setHookPosY] = useState(16)
   const [hookSize, setHookSize] = useState('M')
   const [hookDur, setHookDur] = useState(3)
@@ -101,11 +105,15 @@ export default function ClipEditor({ jobId, clip, channel }) {
       if (c.subHi) setSubHi(c.subHi)
       if (c.subAnim) setSubAnim(c.subAnim)
       if (c.subSize) setSubSize(c.subSize)
+      if (c.subFont) setSubFont(c.subFont)
+      if (c.subBg) setSubBg(c.subBg)
       if (c.hookOn != null) setHookOn(c.hookOn)
       if (c.hookText != null) setHookText(c.hookText)
       if (c.badgeText != null) setBadgeText(c.badgeText)
       if (c.badgeColor) setBadgeColor(c.badgeColor)
-      if (typeof c.hookPosX === 'number') setHookPosX(c.hookPosX)
+      if (c.hookTemplate) setHookTemplate(c.hookTemplate)
+      if (c.hookTextColor) setHookTextColor(c.hookTextColor)
+      if (c.hookAlign) setHookAlign(c.hookAlign)
       if (typeof c.hookPosY === 'number') setHookPosY(c.hookPosY)
       if (c.hookSize) setHookSize(c.hookSize)
       if (c.hookDur != null) setHookDur(c.hookDur)
@@ -118,11 +126,11 @@ export default function ClipEditor({ jobId, clip, channel }) {
   }, [])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const cfg = useMemo(() => ({
-    subOn, subPos, subColor, subHi, subAnim, subSize,
-    hookOn, hookText, badgeText, badgeColor, hookPosX, hookPosY, hookSize, hookDur,
+    subOn, subPos, subColor, subHi, subAnim, subSize, subFont, subBg,
+    hookOn, hookText, badgeText, badgeColor, hookTemplate, hookTextColor, hookAlign, hookPosY, hookSize, hookDur,
     trimIn, trimOut, musicVolume, cap,
-  }), [subOn, subPos, subColor, subHi, subAnim, subSize, hookOn, hookText, badgeText,
-    badgeColor, hookPosX, hookPosY, hookSize, hookDur, trimIn, trimOut, musicVolume, cap])
+  }), [subOn, subPos, subColor, subHi, subAnim, subSize, subFont, subBg, hookOn, hookText, badgeText,
+    badgeColor, hookTemplate, hookTextColor, hookAlign, hookPosY, hookSize, hookDur, trimIn, trimOut, musicVolume, cap])
 
   // --- debounced persist ---------------------------------------------------
   useEffect(() => {
@@ -157,6 +165,7 @@ export default function ClipEditor({ jobId, clip, channel }) {
       if (h.hook) setHookText(h.hook)
       if (h.badgeText != null) setBadgeText(h.badgeText)
       if (h.badgeColor) setBadgeColor(h.badgeColor)
+      if (h.template) setHookTemplate(h.template)
       if (h.size) setHookSize(h.size)
       setHookOn(true)
     } catch (e) {
@@ -170,6 +179,7 @@ export default function ClipEditor({ jobId, clip, channel }) {
       if (r.hook) setHookText(r.hook)
       if (r.badgeText != null) setBadgeText(r.badgeText)
       if (r.badgeColor) setBadgeColor(r.badgeColor)
+      if (r.template) setHookTemplate(r.template)
       if (r.size) setHookSize(r.size)
       setHookOn(true)
     } catch { /* ignore */ } finally { setHookGenBusy(false) }
@@ -207,7 +217,9 @@ export default function ClipEditor({ jobId, clip, channel }) {
     setSubOn(false); setHookOn(false)
     setCap(null); setAutoErr(null); setCapErr(null)
     setSubPos('bottom'); setSubColor('#FFFFFF'); setSubHi('#FFDD00'); setSubAnim('pop'); setSubSize('M')
-    setHookPosX(50); setHookPosY(16); setHookSize('M'); setHookDur(3); setBadgeColor('#2D7FF9')
+    setSubFont('Impact'); setSubBg('none')
+    setHookTemplate('box'); setHookTextColor('#FFFFFF'); setHookAlign('center')
+    setHookPosY(16); setHookSize('M'); setHookDur(3); setBadgeColor('#2D7FF9')
     setHookText(clip.hook_text || ''); setBadgeText(`Source: ${channel || 'Unknown'}`)
     setTrimIn(0); setTrimOut(null)
     if (musicUrl) URL.revokeObjectURL(musicUrl)
@@ -304,6 +316,11 @@ export default function ClipEditor({ jobId, clip, channel }) {
                       { value: 'pop', label: 'Pop' }, { value: 'word-highlight', label: 'Glow' },
                       { value: 'karaoke', label: 'Karaoke' }, { value: 'word-by-word', label: 'Per Kata' },
                       { value: 'none', label: 'Polos' }]} />
+                    <Chips label="Font" value={subFont} onChange={setSubFont} options={[
+                      { value: 'Impact', label: 'Impact' }, { value: 'Inter', label: 'Inter' },
+                      { value: 'Arial', label: 'Arial' }, { value: 'Georgia', label: 'Serif' }]} />
+                    <Chips label="Latar teks" value={subBg} onChange={setSubBg} options={[
+                      { value: 'none', label: 'Tanpa' }, { value: 'box', label: 'Kotak gelap' }]} />
                     <Chips label="Ukuran" value={subSize} onChange={setSubSize} options={[
                       { value: 'S', label: 'Kecil' }, { value: 'M', label: 'Sedang' }, { value: 'L', label: 'Besar' }]} />
                   </div>
@@ -321,7 +338,11 @@ export default function ClipEditor({ jobId, clip, channel }) {
                 <button className="btn btn-solid w-full" onClick={regenHook} disabled={hookGenBusy}>
                   <Sparkles size={15} />{hookGenBusy ? 'Membuat (Groq)…' : 'AI: buat hook + gaya'}
                 </button>
-                <p className="text-[11px] text-gray-mid">AI bikin teks hook + pilih badge & warnanya. Edit manual di bawah kalau mau.</p>
+                <p className="text-[11px] text-gray-mid">AI bikin teks hook + pilih badge, warna & template. Edit manual di bawah kalau mau.</p>
+
+                <Chips label="Template" value={hookTemplate} onChange={setHookTemplate} options={[
+                  { value: 'box', label: 'Box' }, { value: 'minimal', label: 'Minimal' },
+                  { value: 'bar', label: 'Bar' }, { value: 'outline', label: 'Garis' }]} />
 
                 <div>
                   <span className="label">Teks hook</span>
@@ -340,22 +361,28 @@ export default function ClipEditor({ jobId, clip, channel }) {
                   </div>
                 </div>
 
-                {/* Free placement — drag the sliders, posisi update live di preview */}
-                <div>
-                  <span className="label">Posisi horizontal: {hookPosX}%</span>
-                  <input type="range" min={0} max={100} step={1} value={hookPosX}
-                    onChange={(e) => setHookPosX(parseInt(e.target.value, 10))} className="w-full" />
-                </div>
+                {hookTemplate !== 'box' && (
+                  <div>
+                    <span className="label">Warna teks</span>
+                    <div className="flex items-center gap-3">
+                      <ColorChips value={hookTextColor} colors={SUB_COLORS} onChange={setHookTextColor} />
+                      <input type="color" value={hookTextColor} onChange={(e) => setHookTextColor(e.target.value)} title="Custom"
+                        className="w-8 h-8 rounded border border-line bg-transparent cursor-pointer p-0" />
+                    </div>
+                  </div>
+                )}
+                <Chips label="Perataan" value={hookAlign} onChange={setHookAlign} options={[
+                  { value: 'left', label: 'Kiri' }, { value: 'center', label: 'Tengah' }, { value: 'right', label: 'Kanan' }]} />
                 <div>
                   <span className="label">Posisi vertikal: {hookPosY}%</span>
-                  <input type="range" min={0} max={100} step={1} value={hookPosY}
+                  <input type="range" min={4} max={92} step={1} value={hookPosY}
                     onChange={(e) => setHookPosY(parseInt(e.target.value, 10))} className="w-full" />
-                </div>
-                <div className="flex gap-2 flex-wrap">
-                  {[['Atas', 50, 16], ['Tengah', 50, 50], ['Bawah', 50, 82]].map(([l, x, y]) => (
-                    <button key={l} onClick={() => { setHookPosX(x); setHookPosY(y) }}
-                      className="text-[11px] px-2.5 py-1 rounded-full border border-line hover:border-faint">{l}</button>
-                  ))}
+                  <div className="flex gap-2 flex-wrap mt-2">
+                    {[['Atas', 16], ['Tengah', 48], ['Bawah', 82]].map(([l, y]) => (
+                      <button key={l} onClick={() => setHookPosY(y)}
+                        className="text-[11px] px-2.5 py-1 rounded-full border border-line hover:border-faint">{l}</button>
+                    ))}
+                  </div>
                 </div>
 
                 <Chips label="Ukuran" value={hookSize} onChange={setHookSize} options={[
