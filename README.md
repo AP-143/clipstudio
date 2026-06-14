@@ -1,10 +1,10 @@
 # ClipStudio
 
 Self-hosted AI video clip generator. Drop in a long video (file upload or YouTube
-URL) and ClipStudio transcribes it, uses an LLM to find the viral moments, cuts
-and crops them to vertical 9:16, then lets you polish each clip in a live
-in-browser editor — animated subtitles, AI hooks, zoom/grade effects, trim and
-music — and render finished **1080×1920 MP4s** ready for TikTok / Reels / Shorts.
+URL) and ClipStudio transcribes it, uses an LLM to find and score the viral
+moments, cuts and crops them to vertical 9:16, then lets you polish each clip in a
+live in-browser editor — animated subtitles, customizable hooks, trim and music —
+and render finished **1080×1920 MP4s** ready for TikTok / Reels / Shorts.
 
 The preview *is* the render: the editor and the final export run the exact same
 [Remotion](https://remotion.dev) composition, so what you see is what you get.
@@ -21,17 +21,20 @@ The preview *is* the render: the editor and the final export run the exact same
 
 ## Features
 
-- **AI moment detection** — Whisper transcribes, then Groq (Llama 3.3 70B) reads
-  the timestamped transcript and picks 2–6 self-contained viral moments (no blind
-  fixed-length cuts).
+- **AI moment detection & scoring** — Whisper transcribes, then Groq (Llama 3.3
+  70B) reads the timestamped transcript and picks 2–6 self-contained viral moments
+  (no blind fixed-length cuts). Each clip gets a **0–100 viral score** with a
+  reason, and a **"first 3 seconds" hook rule** so clips open on the most
+  scroll-stopping line — surfaced as color-coded priorities in the results grid.
 - **Face-tracking 9:16 crop** — MediaPipe face detection with a YOLOv8 fallback
   and PySceneDetect cut awareness keeps the subject centered.
 - **Live in-browser editor (Remotion)** — preview equals final output:
-  - Word-level **subtitles** with `word-by-word`, `pop`, `glow` and `karaoke`
-    animations; configurable position, color and size.
-  - AI-generated **hook overlay** (badge + headline, custom colors).
-  - **Auto AI effects** — structured zoom + color-grade segments, zoom centers
-    refined from detected faces.
+  - **One-click Auto AI** — generates subtitle style + hook text/style for a clip.
+  - Word-level **subtitles**, fully manual: 8 animations (`pop`, `glow`,
+    `karaoke`, `word-by-word`, `bounce`, `shake`, `reveal`, plain), 9 fonts,
+    uppercase, dark-box background, free vertical position, color and size.
+  - **Hook overlay** with 4 templates (box / minimal / bar / outline), font,
+    text + badge colors, alignment, free position, size and display duration.
   - **Trim** and **background music** per clip.
   - One-click **caption / title / hashtag** generation.
 - **Browser-side rendering** — final encode runs in the browser via
