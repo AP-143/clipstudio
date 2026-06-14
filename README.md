@@ -11,13 +11,13 @@ The preview *is* the render: the editor and the final export run the exact same
 
 ## Screenshots
 
-| Landing | Upload |
+| Landing | AI working — live pipeline progress |
 |---|---|
-| ![Landing](screenshots/landing.png) | ![Upload](screenshots/upload.png) |
+| ![Landing](screenshots/landing.png) | ![Progress](screenshots/progress.png) |
 
-| Results — clips with hooks, subtitles & per-clip editor | Settings |
+| Results — clips ranked by viral score | In-browser subtitle & hook editor |
 |---|---|
-| ![Results](screenshots/results.png) | ![Settings](screenshots/settings.png) |
+| ![Results](screenshots/results.png) | ![Editor](screenshots/editor.png) |
 
 ## Features
 
