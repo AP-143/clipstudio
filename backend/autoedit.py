@@ -216,7 +216,9 @@ Tentukan:
 - "highlightColor": warna kata yang sedang diucapkan (hex). Pilih yang KONTRAS & pop
   (mis. #FFDD00 kuning, #39E0A5 hijau, #36C5FF cyan) sesuai mood.
 - "animation": "pop" (energik, serbaguna) / "word-highlight" (glow lembut, kalem) /
-  "karaoke" (blok highlight, hype/musik) / "word-by-word" (satu kata fokus, fast-talk).
+  "karaoke" (blok highlight, hype/musik) / "word-by-word" (satu kata fokus, fast-talk) /
+  "bounce" (kata mantul, playful) / "shake" (kata getar, intens/marah) /
+  "reveal" (teks muncul seperti diketik, storytelling).
 - "position": "top", "middle", atau "bottom".
 - "size": "S", "M", atau "L" (hype/cepat cenderung L).
 
@@ -224,7 +226,8 @@ Kembalikan HANYA JSON:
 {{"fontColor":"#FFFFFF","highlightColor":"#FFDD00","animation":"pop","position":"bottom","size":"M"}}
 """
 
-_SUB_ANIMS = {"pop", "word-highlight", "karaoke", "word-by-word"}
+_SUB_ANIMS = {"pop", "word-highlight", "karaoke", "word-by-word",
+              "bounce", "shake", "reveal"}
 _SUB_POS = {"top", "middle", "bottom"}
 _SUB_SIZE = {"S", "M", "L"}
 _HEX_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")

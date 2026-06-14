@@ -1,6 +1,6 @@
 import { DEFAULT_SUBTITLE_STYLE } from './lib.js'
 
-const SUB_SIZE = { S: 48, M: 64, L: 84 }
+const SUB_SIZE = { XXS: 28, XS: 36, S: 48, M: 64, L: 84 }
 
 // Turn a saved editor config + runtime data into Remotion ShortVideo props.
 // Shared by the live editor and "Render Semua" so both behave identically.
@@ -22,6 +22,7 @@ export function buildShortProps(cfg = {}, { captions = [], durationSec = 10, fps
     bgColor: '#000000',
     bgOpacity: cfg.subBg === 'box' ? 0.55 : 0,
     borderWidth: cfg.subBg === 'box' ? 0 : DEFAULT_SUBTITLE_STYLE.borderWidth,
+    uppercase: !!cfg.subUpper,
   }
 
   const caps = captions
@@ -37,12 +38,18 @@ export function buildShortProps(cfg = {}, { captions = [], durationSec = 10, fps
 
   const inputProps = {
     videoUrl, trimBefore,
-    subtitles: cfg.subOn ? { captions: caps, position: cfg.subPos || 'bottom', style: subStyle } : null,
+    subtitles: cfg.subOn ? {
+      captions: caps, position: cfg.subPos || 'bottom',
+      posY: typeof cfg.subPosY === 'number' ? cfg.subPosY : undefined,
+      style: subStyle,
+    } : null,
     hook: (cfg.hookOn && (cfg.hookText || '').trim())
       ? {
         text: cfg.hookText.trim(), badgeText: (cfg.badgeText || '').trim() || undefined,
         badgeColor: cfg.badgeColor || '#2D7FF9',
+        badgeTextColor: cfg.badgeTextColor || '#FFFFFF',
         template: cfg.hookTemplate || 'box', textColor: cfg.hookTextColor || '#FFFFFF',
+        font: cfg.hookFont || 'Inter',
         align: cfg.hookAlign || 'center',
         posY: typeof cfg.hookPosY === 'number' ? cfg.hookPosY : 16,
         size: cfg.hookSize || 'M', entranceAnimation: 'spring',

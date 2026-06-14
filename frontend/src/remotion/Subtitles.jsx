@@ -34,7 +34,10 @@ function Block({ block, config, blockStartMs }) {
   const { style, position } = config
   const timeMs = blockStartMs + (frame / fps) * 1000
   const active = getActiveWordIndex(block.words, timeMs)
-  const pos = POSITION[position] || POSITION.bottom
+  // Free vertical position (posY %) overrides the top/middle/bottom preset.
+  const pos = typeof config.posY === 'number'
+    ? { top: `${config.posY}%`, bottom: 'auto', transform: 'translateY(-50%)' }
+    : (POSITION[position] || POSITION.bottom)
 
   const hasBg = style.bgOpacity > 0
   const bg = hasBg ? {
@@ -80,18 +83,34 @@ function Word({ word, isActive, style, frame, fps, wordStartMs, blockStartMs }) 
   let color = style.fontColor
   let extra = {}
 
+  // "reveal" (typewriter): words appear as they're spoken; future words hidden.
+  if (anim === 'reveal') {
+    const reveal = spring({ frame: frame - wordStartFrame, fps, config: { mass: 0.4, stiffness: 240, damping: 20 }, durationInFrames: 6 })
+    extra.opacity = frame >= wordStartFrame ? reveal : 0
+  }
+
   if (isActive) {
-    color = style.highlightColor
+    if (anim !== 'reveal') color = style.highlightColor
     if (anim === 'pop') {
       const s = spring({ frame: frame - wordStartFrame, fps, config: { mass: 0.5, stiffness: 300, damping: 12 }, durationInFrames: 10 })
       transform = `scale(${interpolate(s, [0, 1], [1, 1.25])})`
     } else if (anim === 'karaoke') {
-      extra = { backgroundColor: style.highlightColor, color: style.bgColor || '#000', borderRadius: 6, padding: '2px 8px' }
+      extra = { ...extra, backgroundColor: style.highlightColor, color: style.bgColor || '#000', borderRadius: 6, padding: '2px 8px' }
     } else if (anim === 'word-highlight') {
-      extra = { textShadow: `0 0 12px ${style.highlightColor}, 0 0 24px ${style.highlightColor}66` }
+      extra = { ...extra, textShadow: `0 0 12px ${style.highlightColor}, 0 0 24px ${style.highlightColor}66` }
     } else if (anim === 'word-by-word') {
       const s = spring({ frame: frame - wordStartFrame, fps, config: { mass: 0.4, stiffness: 260, damping: 14 }, durationInFrames: 8 })
       transform = `scale(${interpolate(s, [0, 1], [0.4, 1])})`
+    } else if (anim === 'bounce') {
+      color = style.highlightColor
+      const s = spring({ frame: frame - wordStartFrame, fps, config: { mass: 0.6, stiffness: 220, damping: 9 }, durationInFrames: 16 })
+      const lift = Math.sin(Math.min(1, s) * Math.PI)
+      transform = `translateY(${(-18 * lift).toFixed(1)}px) scale(${(1 + 0.14 * lift).toFixed(3)})`
+    } else if (anim === 'shake') {
+      color = style.highlightColor
+      const t = frame - wordStartFrame
+      const decay = Math.max(0, 1 - t / 10)
+      transform = `translateX(${(Math.sin(t * 2.4) * 6 * decay).toFixed(1)}px) rotate(${(Math.sin(t * 2.0) * 4 * decay).toFixed(1)}deg)`
     }
   }
 
@@ -105,6 +124,8 @@ function Word({ word, isActive, style, frame, fps, wordStartMs, blockStartMs }) 
       fontFamily: getFontStack(style.fontFamily), fontSize: style.fontSize, fontWeight: 800,
       color: anim === 'karaoke' && isActive ? undefined : color,
       textShadow: anim !== 'karaoke' ? [stroke, extra.textShadow].filter(Boolean).join(', ') : stroke,
+      textTransform: style.uppercase ? 'uppercase' : 'none',
+      letterSpacing: style.uppercase ? '0.02em' : undefined,
       transform, display: 'inline-block', ...extra,
     }}>
       {word}

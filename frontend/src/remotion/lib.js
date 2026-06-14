@@ -40,6 +40,11 @@ const FONT_STACKS = {
   Impact: "Impact, Haettenschweiler, sans-serif",
   Georgia: "Georgia, 'Times New Roman', serif",
   Verdana: "Verdana, Geneva, sans-serif",
+  Tahoma: "Tahoma, Geneva, sans-serif",
+  Trebuchet: "'Trebuchet MS', Helvetica, sans-serif",
+  Courier: "'Courier New', Courier, monospace",
+  Comic: "'Comic Sans MS', 'Comic Sans', cursive",
+  Palatino: "'Palatino Linotype', 'Book Antiqua', Palatino, serif",
 }
 export function getFontStack(f) { return FONT_STACKS[f] || f || FONT_STACKS.Inter }
 

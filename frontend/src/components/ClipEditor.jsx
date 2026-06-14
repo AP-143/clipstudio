@@ -21,6 +21,7 @@ const SUB_COLORS = [
   { value: '#39E0A5', label: 'Hijau', hex: '#39E0A5' },
   { value: '#36C5FF', label: 'Cyan', hex: '#36C5FF' },
 ]
+const SUB_PRESET_Y = { top: 12, middle: 48, bottom: 85 }
 const TABS = [
   { id: 'auto', label: 'Auto' }, { id: 'sub', label: 'Subtitle' },
   { id: 'hook', label: 'Hook' },
@@ -43,12 +44,16 @@ export default function ClipEditor({ jobId, clip, channel }) {
   const [subSize, setSubSize] = useState('M')
   const [subFont, setSubFont] = useState('Impact')
   const [subBg, setSubBg] = useState('none')
+  const [subUpper, setSubUpper] = useState(false)
+  const [subPosY, setSubPosY] = useState(null) // null => use preset (subPos)
 
   const [hookOn, setHookOn] = useState(!!clip.hook_text)
   const [hookText, setHookText] = useState(clip.hook_text || '')
   const [badgeText, setBadgeText] = useState(`Source: ${channel || 'Unknown'}`)
   const [badgeColor, setBadgeColor] = useState('#2D7FF9')
+  const [badgeTextColor, setBadgeTextColor] = useState('#FFFFFF')
   const [hookTemplate, setHookTemplate] = useState('box')
+  const [hookFont, setHookFont] = useState('Inter')
   const [hookTextColor, setHookTextColor] = useState('#FFFFFF')
   const [hookAlign, setHookAlign] = useState('center')
   const [hookPosY, setHookPosY] = useState(16)
@@ -74,6 +79,7 @@ export default function ClipEditor({ jobId, clip, channel }) {
   const [renderErr, setRenderErr] = useState(null)
   const [saved, setSaved] = useState(false)
   const loadedRef = useRef(false)
+  const capTriedRef = useRef(false)
 
   // --- load captions + fps + clip blob -------------------------------------
   useEffect(() => {
@@ -105,11 +111,15 @@ export default function ClipEditor({ jobId, clip, channel }) {
       if (c.subSize) setSubSize(c.subSize)
       if (c.subFont) setSubFont(c.subFont)
       if (c.subBg) setSubBg(c.subBg)
+      if (c.subUpper != null) setSubUpper(c.subUpper)
+      if (c.subPosY !== undefined) setSubPosY(c.subPosY)
       if (c.hookOn != null) setHookOn(c.hookOn)
       if (c.hookText != null) setHookText(c.hookText)
       if (c.badgeText != null) setBadgeText(c.badgeText)
       if (c.badgeColor) setBadgeColor(c.badgeColor)
+      if (c.badgeTextColor) setBadgeTextColor(c.badgeTextColor)
       if (c.hookTemplate) setHookTemplate(c.hookTemplate)
+      if (c.hookFont) setHookFont(c.hookFont)
       if (c.hookTextColor) setHookTextColor(c.hookTextColor)
       if (c.hookAlign) setHookAlign(c.hookAlign)
       if (typeof c.hookPosY === 'number') setHookPosY(c.hookPosY)
@@ -124,11 +134,11 @@ export default function ClipEditor({ jobId, clip, channel }) {
   }, [])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const cfg = useMemo(() => ({
-    subOn, subPos, subColor, subHi, subAnim, subSize, subFont, subBg,
-    hookOn, hookText, badgeText, badgeColor, hookTemplate, hookTextColor, hookAlign, hookPosY, hookSize, hookDur,
+    subOn, subPos, subPosY, subColor, subHi, subAnim, subSize, subFont, subBg, subUpper,
+    hookOn, hookText, badgeText, badgeColor, badgeTextColor, hookTemplate, hookFont, hookTextColor, hookAlign, hookPosY, hookSize, hookDur,
     trimIn, trimOut, musicVolume, cap,
-  }), [subOn, subPos, subColor, subHi, subAnim, subSize, subFont, subBg, hookOn, hookText, badgeText,
-    badgeColor, hookTemplate, hookTextColor, hookAlign, hookPosY, hookSize, hookDur, trimIn, trimOut, musicVolume, cap])
+  }), [subOn, subPos, subPosY, subColor, subHi, subAnim, subSize, subFont, subBg, subUpper, hookOn, hookText, badgeText,
+    badgeColor, badgeTextColor, hookTemplate, hookFont, hookTextColor, hookAlign, hookPosY, hookSize, hookDur, trimIn, trimOut, musicVolume, cap])
 
   // --- debounced persist ---------------------------------------------------
   useEffect(() => {
@@ -157,7 +167,7 @@ export default function ClipEditor({ jobId, clip, channel }) {
       if (s.fontColor) setSubColor(s.fontColor)
       if (s.highlightColor) setSubHi(s.highlightColor)
       if (s.animation) setSubAnim(s.animation)
-      if (s.position) setSubPos(s.position)
+      if (s.position) { setSubPos(s.position); setSubPosY(null) }
       if (s.size) setSubSize(s.size)
       setSubOn(true)
       if (h.hook) setHookText(h.hook)
@@ -171,11 +181,20 @@ export default function ClipEditor({ jobId, clip, channel }) {
     } finally { setAutoBusy(false) }
   }
   const runCaption = async () => {
+    capTriedRef.current = true
     setCapBusy(true); setCapErr(null)
     try { setCap(await api(`/api/clip/${jobId}/${clip.index}/caption`, { method: 'POST' })) }
     catch (e) { setCapErr([e?.message, e?.solution].filter(Boolean).join(' — ') || 'Gagal') }
     finally { setCapBusy(false) }
   }
+
+  // Auto-generate caption + titles the first time the Teks tab opens, so the
+  // result shows directly without the user having to click a button.
+  useEffect(() => {
+    if (tab === 'caption' && !cap && !capBusy && !capErr && !capTriedRef.current) {
+      runCaption()
+    }
+  }, [tab, cap, capBusy, capErr])  // eslint-disable-line react-hooks/exhaustive-deps
   const onMusicFile = (e) => {
     const f = e.target.files?.[0]
     if (!f) return
@@ -189,11 +208,11 @@ export default function ClipEditor({ jobId, clip, channel }) {
   }
   const resetAll = () => {
     setSubOn(false); setHookOn(false)
-    setCap(null); setAutoErr(null); setCapErr(null)
+    setCap(null); setAutoErr(null); setCapErr(null); capTriedRef.current = false
     setSubPos('bottom'); setSubColor('#FFFFFF'); setSubHi('#FFDD00'); setSubAnim('pop'); setSubSize('M')
-    setSubFont('Impact'); setSubBg('none')
-    setHookTemplate('box'); setHookTextColor('#FFFFFF'); setHookAlign('center')
-    setHookPosY(16); setHookSize('M'); setHookDur(3); setBadgeColor('#2D7FF9')
+    setSubFont('Impact'); setSubBg('none'); setSubUpper(false); setSubPosY(null)
+    setHookTemplate('box'); setHookFont('Inter'); setHookTextColor('#FFFFFF'); setHookAlign('center')
+    setHookPosY(16); setHookSize('M'); setHookDur(3); setBadgeColor('#2D7FF9'); setBadgeTextColor('#FFFFFF')
     setHookText(clip.hook_text || ''); setBadgeText(`Source: ${channel || 'Unknown'}`)
     setTrimIn(0); setTrimOut(null)
     if (musicUrl) URL.revokeObjectURL(musicUrl)
@@ -272,12 +291,17 @@ export default function ClipEditor({ jobId, clip, channel }) {
                   <Chips label="Animasi" value={subAnim} onChange={setSubAnim} options={[
                     { value: 'pop', label: 'Pop' }, { value: 'word-highlight', label: 'Glow' },
                     { value: 'karaoke', label: 'Karaoke' }, { value: 'word-by-word', label: 'Per Kata' },
-                    { value: 'none', label: 'Polos' }]} />
+                    { value: 'bounce', label: 'Mantul' }, { value: 'shake', label: 'Getar' },
+                    { value: 'reveal', label: 'Ketik' }, { value: 'none', label: 'Polos' }]} />
                   <Chips label="Font" value={subFont} onChange={setSubFont} options={[
                     { value: 'Impact', label: 'Impact' }, { value: 'Inter', label: 'Inter' },
-                    { value: 'Arial', label: 'Arial' }, { value: 'Georgia', label: 'Serif' }]} />
+                    { value: 'Arial', label: 'Arial' }, { value: 'Tahoma', label: 'Tahoma' },
+                    { value: 'Trebuchet', label: 'Trebuchet' }, { value: 'Georgia', label: 'Serif' },
+                    { value: 'Courier', label: 'Mono' }, { value: 'Comic', label: 'Comic' }]} />
                   <Chips label="Latar teks" value={subBg} onChange={setSubBg} options={[
                     { value: 'none', label: 'Tanpa' }, { value: 'box', label: 'Kotak gelap' }]} />
+                  <Chips label="Huruf" value={subUpper ? 'upper' : 'normal'} onChange={(v) => setSubUpper(v === 'upper')} options={[
+                    { value: 'normal', label: 'Normal' }, { value: 'upper', label: 'HURUF BESAR' }]} />
                   <div>
                     <span className="label">Warna teks</span>
                     <ColorChips value={subColor} colors={SUB_COLORS} onChange={setSubColor} />
@@ -290,9 +314,19 @@ export default function ClipEditor({ jobId, clip, channel }) {
                         className="w-8 h-8 rounded border border-line bg-transparent cursor-pointer p-0" />
                     </div>
                   </div>
-                  <Chips label="Posisi" value={subPos} onChange={setSubPos} options={[
-                    { value: 'top', label: 'Atas' }, { value: 'middle', label: 'Tengah' }, { value: 'bottom', label: 'Bawah' }]} />
+                  <div>
+                    <span className="label">Posisi vertikal: {subPosY ?? SUB_PRESET_Y[subPos] ?? 85}%</span>
+                    <input type="range" min={4} max={94} step={1} value={subPosY ?? SUB_PRESET_Y[subPos] ?? 85}
+                      onChange={(e) => setSubPosY(parseInt(e.target.value, 10))} className="w-full" />
+                    <div className="flex gap-2 flex-wrap mt-2">
+                      {[['Atas', 12], ['Tengah', 48], ['Bawah', 85]].map(([l, y]) => (
+                        <button key={l} onClick={() => setSubPosY(y)}
+                          className="text-[11px] px-2.5 py-1 rounded-full border border-line hover:border-faint">{l}</button>
+                      ))}
+                    </div>
+                  </div>
                   <Chips label="Ukuran" value={subSize} onChange={setSubSize} options={[
+                    { value: 'XXS', label: 'Mini' }, { value: 'XS', label: 'Sangat kecil' },
                     { value: 'S', label: 'Kecil' }, { value: 'M', label: 'Sedang' }, { value: 'L', label: 'Besar' }]} />
                 </div>
               </>
@@ -310,6 +344,11 @@ export default function ClipEditor({ jobId, clip, channel }) {
                 <Chips label="Template" value={hookTemplate} onChange={setHookTemplate} options={[
                   { value: 'box', label: 'Box' }, { value: 'minimal', label: 'Minimal' },
                   { value: 'bar', label: 'Bar' }, { value: 'outline', label: 'Garis' }]} />
+                <Chips label="Font" value={hookFont} onChange={setHookFont} options={[
+                  { value: 'Inter', label: 'Inter' }, { value: 'Impact', label: 'Impact' },
+                  { value: 'Arial', label: 'Arial' }, { value: 'Tahoma', label: 'Tahoma' },
+                  { value: 'Trebuchet', label: 'Trebuchet' }, { value: 'Georgia', label: 'Serif' },
+                  { value: 'Courier', label: 'Mono' }, { value: 'Comic', label: 'Comic' }]} />
 
                 <div>
                   <span className="label">Teks hook</span>
@@ -324,6 +363,14 @@ export default function ClipEditor({ jobId, clip, channel }) {
                   <div className="flex items-center gap-3">
                     <ColorChips value={badgeColor} colors={BADGE_COLORS} onChange={setBadgeColor} />
                     <input type="color" value={badgeColor} onChange={(e) => setBadgeColor(e.target.value)} title="Custom"
+                      className="w-8 h-8 rounded border border-line bg-transparent cursor-pointer p-0" />
+                  </div>
+                </div>
+                <div>
+                  <span className="label">Warna teks badge</span>
+                  <div className="flex items-center gap-3">
+                    <ColorChips value={badgeTextColor} colors={SUB_COLORS} onChange={setBadgeTextColor} />
+                    <input type="color" value={badgeTextColor} onChange={(e) => setBadgeTextColor(e.target.value)} title="Custom"
                       className="w-8 h-8 rounded border border-line bg-transparent cursor-pointer p-0" />
                   </div>
                 </div>
@@ -353,6 +400,7 @@ export default function ClipEditor({ jobId, clip, channel }) {
                 </div>
 
                 <Chips label="Ukuran" value={hookSize} onChange={setHookSize} options={[
+                  { value: 'XXS', label: 'Mini' }, { value: 'XS', label: 'Sangat kecil' },
                   { value: 'S', label: 'Kecil' }, { value: 'M', label: 'Sedang' }, { value: 'L', label: 'Besar' }]} />
                 <Chips label="Durasi tampil" value={hookDur} onChange={setHookDur} options={[
                   { value: 3, label: '3 dtk' }, { value: 5, label: '5 dtk' }, { value: 'full', label: 'Sepanjang' }]} />
@@ -401,10 +449,19 @@ export default function ClipEditor({ jobId, clip, channel }) {
 
         {tab === 'caption' && (
           <div className="space-y-3">
-            <button className="btn btn-outline w-full" onClick={runCaption} disabled={capBusy}>
-              <Type size={15} />{capBusy ? 'Membuat (Groq)…' : 'Buat Caption & Judul (AI)'}
-            </button>
-            {capErr && <p className="text-xs text-red-400 break-all">{capErr}</p>}
+            {capBusy && !cap && (
+              <p className="text-xs text-soft flex items-center gap-2">
+                <Type size={14} className="animate-pulse" />Membuat caption &amp; judul (Groq)…
+              </p>
+            )}
+            {capErr && (
+              <div className="space-y-2">
+                <p className="text-xs text-red-400 break-all">{capErr}</p>
+                <button className="btn btn-outline w-full" onClick={runCaption} disabled={capBusy}>
+                  <Type size={15} />Coba lagi
+                </button>
+              </div>
+            )}
             {cap && (
               <div className="space-y-3 text-sm">
                 <CopyBlock label="Caption" text={cap.caption} k="cap" copied={copied} copy={copy} />
@@ -423,6 +480,9 @@ export default function ClipEditor({ jobId, clip, channel }) {
                     </div>
                   </div>
                 )}
+                <button className="text-xs text-soft hover:text-ink flex items-center gap-1.5 mx-auto" onClick={runCaption} disabled={capBusy}>
+                  <Type size={13} />{capBusy ? 'Membuat ulang…' : 'Buat ulang'}
+                </button>
               </div>
             )}
           </div>
