@@ -126,6 +126,10 @@ def _run_yt_dlp(job_id: str, url: str, out_path: Path,
                             text=True)
     jobs.register_proc(job_id, proc)
     last_err = ""
+    # 1080p downloads two streams (video then audio), and yt-dlp's percent resets
+    # 0->100 for each. Keep the reported progress monotonic so the bar doesn't
+    # visibly jump back to 0 when the (small) audio stream starts.
+    max_pct = 0.0
     try:
         for line in proc.stdout:  # stream progress lines
             jobs.check_cancelled(job_id)
@@ -133,7 +137,9 @@ def _run_yt_dlp(job_id: str, url: str, out_path: Path,
             if progress_cb and "%" in line and "[download]" in line:
                 try:
                     pct = float(line.split("%")[0].split()[-1])
-                    progress_cb(pct)
+                    if pct > max_pct:
+                        max_pct = pct
+                        progress_cb(max_pct)
                 except (ValueError, IndexError):
                     pass
         proc.wait()

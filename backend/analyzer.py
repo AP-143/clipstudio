@@ -25,11 +25,16 @@ TRANSKRIP:
 
 DURASI VIDEO: {duration} detik
 
-Kriteria momen viral:
-- Hook kuat di awal (pertanyaan/fakta mengejutkan, konflik)
-- Nilai informasi atau hiburan tinggi
-- Momen emosional (tawa, kejutan, inspirasi, kontroversi)
-- Cocok untuk format 9:16 vertikal
+Kriteria momen viral (makin banyak terpenuhi, makin tinggi viral_score):
+- HOOK 3 DETIK PERTAMA = SEGALANYA. Momen WAJIB dibuka dengan kalimat paling
+  provokatif/mengejutkan/memancing rasa penasaran — BUKAN basa-basi, intro,
+  "eee jadi gini", sapaan, atau pengantar. Kalau awal segmen cuma basa-basi,
+  geser start ke kalimat kuat pertamanya.
+- Kontroversi / pendapat berani / konflik = pemicu komen (engagement tinggi).
+- Quotable: ada kalimat tajam yang gampang dikutip/diingat.
+- Emosi kuat: tawa, kaget, marah, haru, atau "gila banget".
+- Relatable / menyentuh pengalaman umum penonton.
+- Nilai informasi atau hiburan tinggi, cocok untuk format 9:16 vertikal.
 
 CARA MENENTUKAN start & end (PALING PENTING):
 - start dan end WAJIB diambil dari angka timestamp [mulai-akhir] yang ADA di transkrip.
@@ -55,8 +60,8 @@ Kembalikan JSON PERSIS format ini:
       "end": 58.7,
       "title": "Judul klip menarik",
       "viral_score": 93,
-      "hook_text": "Teks hook untuk overlay di awal video",
-      "reason": "Alasan kenapa viral"
+      "hook_text": "Kalimat PALING provokatif dari momen ini (jadi 3 detik pertama)",
+      "reason": "Alasan singkat & spesifik: elemen viral mana yang kuat (hook/kontroversi/emosi/quotable)"
     }}
   ]
 }}
@@ -64,7 +69,10 @@ Kembalikan JSON PERSIS format ini:
 ATURAN WAJIB:
 - Minimum 2 momen, maksimum 6 momen
 - Urutkan viral_score TERTINGGI ke terendah
-- viral_score antara 0-100
+- viral_score antara 0-100. Panduan: 85-100 = hook sangat kuat + kontroversial/
+  emosional + quotable; 70-84 = bagus, satu elemen menonjol; <70 = lemah/biasa.
+- hook_text WAJIB kalimat paling nampol dari momen (bukan ringkasan), karena ini
+  yang muncul di 3 detik pertama dan menentukan orang scroll atau berhenti.
 - Setiap momen 60-150 detik (boleh sampai 180 jika idenya panjang), mengikuti isi; utuh, tidak terpotong. Hindari klip pendek <50 detik.
 - Tidak boleh overlap
 - hook_text dalam bahasa yang sama dengan video
